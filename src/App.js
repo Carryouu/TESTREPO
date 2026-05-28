@@ -361,7 +361,7 @@ function Tracker({ user, onLogout }) {
   const [calMangees, setCalMangees] = useState({});
   const [deficitLog, setDeficitLog] = useState({});
   const [selectedCardioDate, setSelectedCardioDate] = useState(todayKey());
-
+  const [selectedCalDate, setSelectedCalDate] = useState(todayKey());
   // ── LOAD depuis Supabase ───────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
