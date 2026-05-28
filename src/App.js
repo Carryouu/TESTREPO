@@ -873,15 +873,15 @@ function Tracker({ user, onLogout }) {
     <button onClick={()=>{const d=keyToDate(selectedCalDate);d.setDate(d.getDate()+1);const nk=dateToKey(d);if(nk<=todayKey())setSelectedCalDate(nk);}} disabled={selectedCalDate===todayKey()} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:selectedCalDate===todayKey()?"#333":"#888",padding:"8px 14px",cursor:selectedCalDate===todayKey()?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
   </div>
   <Label>Calories — {selectedCalDate===todayKey()?"aujourd'hui":fmtShort(selectedCalDate)}</Label>
-  <div style={{display:"flex",gap:8,marginBottom:12}}>
-    <NumInput value={calMangees[selectedCalDate]||""} onChange={v=>setCalMangees(prev=>({...prev,[selectedCalDate]:v}))} placeholder={`objectif : ${cibleKcal} kcal`} style={{flex:1}}/>
-    {selectedCalDate !== todayKey() && (
-    <Btn onClick={()=>saveUserData(user, {maxes,history,sessions,profile,objectif,poidsLog,cardioLog,calMangees,deficitLog})} color="#4ECDC4" textColor="#000" style={{marginBottom:12}}>
+<div style={{display:"flex",gap:8,marginBottom:12}}>
+  <NumInput value={calMangees[selectedCalDate]||""} onChange={v=>setCalMangees(prev=>({...prev,[selectedCalDate]:v}))} placeholder={`objectif : ${cibleKcal} kcal`} style={{flex:1}}/>
+  <span style={{display:"flex",alignItems:"center",color:"#555"}}>kcal</span>
+</div>
+{selectedCalDate !== todayKey() && (
+  <Btn onClick={()=>saveUserData(user, {maxes,history,sessions,profile,objectif,poidsLog,cardioLog,calMangees,deficitLog})} color="#4ECDC4" textColor="#000" style={{marginBottom:12}}>
     💾 Sauvegarder ce jour
   </Btn>
 )}
-    <span style={{display:"flex",alignItems:"center",color:"#555"}}>kcal</span>
-  </div>
   {calMangees[selectedCalDate]&&(()=>{
     const calJour=parseInt(calMangees[selectedCalDate])||0;
     const cardioJour=(cardioLog[selectedCalDate]||[]).reduce((s,e)=>s+e.kcal,0);
