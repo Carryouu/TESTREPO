@@ -268,7 +268,7 @@ const ExoSelector = ({ filterCat, setFilterCat, selectedExo, setSelectedExo }) =
       {["Push","Pull","Legs","Core"].map(cat=>
         <button key={cat} onClick={()=>{setFilterCat(cat);setSelectedExo(EXERCISES.find(e=>e.category===cat)?.id);}}
           style={{flex:1,padding:9,borderRadius:10,border:"none",cursor:"pointer",background:filterCat===cat?catColor[cat]:"#111118",color:filterCat===cat?"#000":"#555",fontWeight:filterCat===cat?800:400,fontSize:14}}>{cat}</button>
-      ))}
+      )}
     </div>
     <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
       {EXERCISES.filter(e=>e.category===filterCat).map(e=>(
