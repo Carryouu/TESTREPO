@@ -445,7 +445,8 @@ function Tracker({ user, onLogout }) {
   const tdee=Math.round(mbr*actFactor);
   const objData=OBJECTIFS.find(o=>o.id===objectif)||OBJECTIFS[4];
   const todayCardio = cardioLog[selectedCardioDate] || [];
-  const totalKcalCardio=todayCardio.reduce((s,e)=>s+e.kcal,0);
+  const todayCardioForCalc = cardioLog[todayKey()] || [];
+  const totalKcalCardio = todayCardioForCalc.reduce((s,e)=>s+e.kcal,0);
   const cibleKcal=tdee+objData.deficit+totalKcalCardio;
   const cibleProt=Math.round(poids*objData.protPerKg);
   const cibleLip=Math.round(poids*objData.fatPerKg);
