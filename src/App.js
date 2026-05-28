@@ -864,41 +864,53 @@ function Tracker({ user, onLogout }) {
             </Card>
             <Card>
               <Label>Calories mangées aujourd'hui</Label>
-              <div style={{display:"flex",gap:8,marginBottom:12}}>
-                <NumInput value={calMangees[todayKey()]||""} onChange={v=>setCalMangees(prev=>({...prev,[todayKey()]:v}))} placeholder={`objectif : ${cibleKcal} kcal`} style={{flex:1}}/>
-                <span style={{display:"flex",alignItems:"center",color:"#555"}}>kcal</span>
-              </div>
-              {ecart!==null&&(()=>{
-                const ok=Math.abs(ecart)<=50,trop=ecart>50;
-                const pct=Math.min(100,Math.round((calAujourdhui/cibleKcal)*100));
-                const col=ok?"#44CC44":trop?"#FFB300":"#FF4444";
-                return(
-                  <div style={{background:"#111118",border:`1px solid ${col}33`,borderRadius:12,padding:14,marginBottom:12}}>
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#444",marginBottom:6}}><span>{calAujourdhui} kcal</span><span>Objectif : {cibleKcal} kcal</span></div>
-                    <div style={{background:"#1A1A2A",borderRadius:6,height:10,marginBottom:10,overflow:"hidden"}}><div style={{background:col,borderRadius:6,height:10,width:`${pct}%`,transition:"width 0.5s"}}/></div>
-                    <div style={{textAlign:"center"}}>
-                      {ok&&<div style={{fontSize:16,fontWeight:900,color:"#44CC44"}}>✅ Objectif atteint !</div>}
-                      {trop&&<><div style={{fontSize:14,fontWeight:800,color:"#FFB300"}}>Il reste {ecart} kcal</div><div style={{fontSize:11,color:"#555",marginTop:4}}>Déficit trop important</div></>}
-                      {!ok&&!trop&&<div style={{fontSize:14,fontWeight:800,color:"#FF4444"}}>Dépassement de {Math.abs(ecart)} kcal</div>}
-                    </div>
-                    {deficitReel!==null&&<div style={{marginTop:10,textAlign:"center",fontSize:12,color:"#888"}}>Déficit réel : <span style={{fontWeight:800,color:deficitReel<0?"#44CC44":"#FF4444"}}>{deficitReel>0?"+":""}{deficitReel} kcal</span></div>}
-                  </div>
-                );
-              })()}
-              {deficitChartData.length>0&&(
-                <>
-                  <Label>Déficit 14 derniers jours</Label>
-                  <div style={{background:"#0D0D14",borderRadius:10,padding:12,marginBottom:12}}><BarChart data={deficitChartData}/></div>
-                  <div style={{background:"#0D0D14",borderRadius:10,padding:"10px 14px"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <div style={{fontSize:12,color:"#555"}}>Cumul semaine</div>
-                      <div style={{fontSize:18,fontWeight:900,color:cumulDeficitSemaine<0?"#44CC44":cumulDeficitSemaine>500?"#FF4444":"#FFB300"}}>{Math.round(cumulDeficitSemaine)>0?"+":""}{Math.round(cumulDeficitSemaine)} kcal</div>
-                    </div>
-                    <div style={{fontSize:11,color:"#444",marginTop:4}}>Perte théorique : ~{Math.abs(Math.round(cumulDeficitSemaine/7700*100)/100)} kg/sem</div>
-                  </div>
-                </>
-              )}
-            </Card>
+              <div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+    <button onClick={()=>{const d=keyToDate(selectedCalDate);d.setDate(d.getDate()-1);setSelectedCalDate(dateToKey(d));}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
+    <div style={{textAlign:"center"}}>
+      <div style={{fontWeight:800,fontSize:14,color:selectedCalDate===todayKey()?"#FF6B35":"#F0F0F0"}}>{selectedCalDate===todayKey()?"📅 Aujourd'hui":fmtShort(selectedCalDate)}</div>
+      {selectedCalDate!==todayKey()&&<div style={{fontSize:11,color:"#FF6B35",marginTop:2}}>⚠️ Édition historique</div>}
+    </div>
+    <button onClick={()=>{const d=keyToDate(selectedCalDate);d.setDate(d.getDate()+1);const nk=dateToKey(d);if(nk<=todayKey())setSelectedCalDate(nk);}} disabled={selectedCalDate===todayKey()} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:selectedCalDate===todayKey()?"#333":"#888",padding:"8px 14px",cursor:selectedCalDate===todayKey()?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
+  </div>
+  <Label>Calories — {selectedCalDate===todayKey()?"aujourd'hui":fmtShort(selectedCalDate)}</Label>
+  <div style={{display:"flex",gap:8,marginBottom:12}}>
+    <NumInput value={calMangees[selectedCalDate]||""} onChange={v=>setCalMangees(prev=>({...prev,[selectedCalDate]:v}))} placeholder={`objectif : ${cibleKcal} kcal`} style={{flex:1}}/>
+    <span style={{display:"flex",alignItems:"center",color:"#555"}}>kcal</span>
+  </div>
+  {calMangees[selectedCalDate]&&(()=>{
+    const calJour=parseInt(calMangees[selectedCalDate])||0;
+    const cardioJour=(cardioLog[selectedCalDate]||[]).reduce((s,e)=>s+e.kcal,0);
+    const defJour=(tdee+cardioJour)-calJour;
+    const ok=Math.abs(cibleKcal-calJour)<=50,trop=cibleKcal-calJour>50;
+    const pct=Math.min(100,Math.round((calJour/cibleKcal)*100));
+    const col=ok?"#44CC44":trop?"#FFB300":"#FF4444";
+    return(
+      <div style={{background:"#111118",border:`1px solid ${col}33`,borderRadius:12,padding:14,marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#444",marginBottom:6}}><span>{calJour} kcal</span><span>Objectif : {cibleKcal} kcal</span></div>
+        <div style={{background:"#1A1A2A",borderRadius:6,height:10,marginBottom:10,overflow:"hidden"}}><div style={{background:col,borderRadius:6,height:10,width:`${pct}%`,transition:"width 0.5s"}}/></div>
+        <div style={{textAlign:"center",marginBottom:8}}>
+          {ok&&<div style={{fontSize:16,fontWeight:900,color:"#44CC44"}}>✅ Objectif atteint !</div>}
+          {trop&&<div style={{fontSize:14,fontWeight:800,color:"#FFB300"}}>Il reste {cibleKcal-calJour} kcal</div>}
+          {!ok&&!trop&&<div style={{fontSize:14,fontWeight:800,color:"#FF4444"}}>Dépassement de {Math.abs(cibleKcal-calJour)} kcal</div>}
+        </div>
+        <div style={{textAlign:"center",fontSize:12,color:"#888"}}>Déficit réel : <span style={{fontWeight:800,color:defJour>0?"#44CC44":"#FF4444"}}>{defJour>0?"+":""}{defJour} kcal</span></div>
+      </div>
+    );
+  })()}
+  {deficitChartData.length>0&&(
+    <>
+      <Label>Déficit 14 derniers jours</Label>
+      <div style={{background:"#0D0D14",borderRadius:10,padding:12,marginBottom:12}}><BarChart data={deficitChartData}/></div>
+      <div style={{background:"#0D0D14",borderRadius:10,padding:"10px 14px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:12,color:"#555"}}>Cumul semaine</div>
+          <div style={{fontSize:18,fontWeight:900,color:cumulDeficitSemaine>0?"#44CC44":cumulDeficitSemaine<-500?"#FF4444":"#FFB300"}}>{Math.round(cumulDeficitSemaine)>0?"+":""}{Math.round(cumulDeficitSemaine)} kcal</div>
+        </div>
+        <div style={{fontSize:11,color:"#444",marginTop:4}}>Perte théorique : ~{Math.abs(Math.round(cumulDeficitSemaine/7700*100)/100)} kg/sem</div>
+      </div>
+    </>
+  )}
+</Card>
             <Card>
               <Label>Cardio du jour</Label>
               <div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
