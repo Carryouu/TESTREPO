@@ -459,12 +459,19 @@ function Tracker({ user, onLogout }) {
     if(calAujourdhui>0) setDeficitLog(prev=>({...prev,[todayKey()]:deficitReel}));
   },[calMangees,cibleKcal]);
 
-  const cumulDeficitSemaine=(()=>{
-    const now=new Date(),dow=now.getDay()===0?7:now.getDay(),lundi=new Date(now);
-    lundi.setDate(now.getDate()-dow+1);
-    const lk=dateToKey(lundi);
-    return Object.entries(deficitLog).filter(([k])=>k>=lk).reduce((s,[,v])=>s+v,0);
-  })();
+ const cumulDeficitSemaine=(()=>{
+  const now=new Date(),dow=now.getDay()===0?7:now.getDay(),lundi=new Date(now);
+  lundi.setDate(now.getDate()-dow+1);
+  const lk=dateToKey(lundi);
+  return Object.entries(calMangees)
+    .filter(([k])=>k>=lk&&k<=todayKey())
+    .reduce((s,[date,cal])=>{
+      const calNum=parseInt(cal)||0;
+      if(calNum===0) return s;
+      const cardioJour=(cardioLog[date]||[]).reduce((c,e)=>c+e.kcal,0);
+      return s+(tdee+cardioJour)-calNum;
+    },0);
+})();
 
   const notify=(msg,type="success")=>{setNotification({msg,type});setTimeout(()=>setNotification(null),3000);};
 
