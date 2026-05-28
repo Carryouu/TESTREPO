@@ -875,6 +875,11 @@ function Tracker({ user, onLogout }) {
   <Label>Calories — {selectedCalDate===todayKey()?"aujourd'hui":fmtShort(selectedCalDate)}</Label>
   <div style={{display:"flex",gap:8,marginBottom:12}}>
     <NumInput value={calMangees[selectedCalDate]||""} onChange={v=>setCalMangees(prev=>({...prev,[selectedCalDate]:v}))} placeholder={`objectif : ${cibleKcal} kcal`} style={{flex:1}}/>
+    {selectedCalDate !== todayKey() && (
+    <Btn onClick={()=>saveUserData(user, {maxes,history,sessions,profile,objectif,poidsLog,cardioLog,calMangees,deficitLog})} color="#4ECDC4" textColor="#000" style={{marginBottom:12}}>
+    💾 Sauvegarder ce jour
+  </Btn>
+)}
     <span style={{display:"flex",alignItems:"center",color:"#555"}}>kcal</span>
   </div>
   {calMangees[selectedCalDate]&&(()=>{
