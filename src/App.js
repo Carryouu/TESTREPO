@@ -878,9 +878,13 @@ function Tracker({ user, onLogout }) {
   <span style={{display:"flex",alignItems:"center",color:"#555"}}>kcal</span>
 </div>
 {selectedCalDate !== todayKey() && (
-  <Btn onClick={()=>saveUserData(user, {maxes,history,sessions,profile,objectif,poidsLog,cardioLog,calMangees,deficitLog})} color="#4ECDC4" textColor="#000" style={{marginBottom:12}}>
+  <Btn onClick={async()=>{
+    await saveUserData(user, {maxes,history,sessions,profile,objectif,poidsLog,cardioLog,calMangees,deficitLog});
+    notify("✅ Jour sauvegardé !");
+  }} color="#4ECDC4" textColor="#000" style={{marginBottom:12}}>
     💾 Sauvegarder ce jour
   </Btn>
+
 )}
   {calMangees[selectedCalDate]&&(()=>{
     const calJour=parseInt(calMangees[selectedCalDate])||0;
