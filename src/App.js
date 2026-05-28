@@ -453,7 +453,7 @@ function Tracker({ user, onLogout }) {
   const cibleGluc=Math.max(0,Math.round((cibleKcal-cibleProt*4-cibleLip*9)/4));
   const calAujourdhui=parseInt(calMangees[todayKey()]||0);
   const ecart=calAujourdhui>0?cibleKcal-calAujourdhui:null;
-  const deficitReel=calAujourdhui>0?calAujourdhui-cibleKcal:null;
+  const deficitReel=calAujourdhui>0?(tdee+totalKcalCardio)-calAujourdhui:null;
 
   useEffect(()=>{
     if(calAujourdhui>0) setDeficitLog(prev=>({...prev,[todayKey()]:deficitReel}));
