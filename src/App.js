@@ -36,6 +36,12 @@ function useDebounce(value, delay) {
 
 // ── DATA ──────────────────────────────────────────────────────────────────
 const EXERCISES = [
+  { id:"crunch_cable",  name:"Crunch Câble",       emoji:"🔗", default1RM:30, category:"Core" },
+  { id:"crunch_dec",    name:"Crunch Décliné",      emoji:"📐", default1RM:0,  category:"Core" },
+  { id:"rdj",           name:"Relevé de Jambes",    emoji:"🦵", default1RM:0,  category:"Core" },
+  { id:"ab_wheel",      name:"Ab Wheel",            emoji:"⚙️", default1RM:0,  category:"Core" },
+  { id:"crunch_russe",  name:"Crunch Russe Lesté",  emoji:"🔄", default1RM:10, category:"Core" },
+  { id:"pallof",        name:"Pallof Press",        emoji:"🎯", default1RM:15, category:"Core" },
   { id:"press_vert", name:"Presse Verticale", emoji:"🦾", default1RM:120, category:"Legs" },
   { id:"leg_curl_al", name:"Leg Curl Allongé", emoji:"🦵", default1RM:40, category:"Legs" },
   { id:"dc",    name:"Développé Couché",     emoji:"🏋️", default1RM:95,  category:"Push" },
@@ -65,8 +71,6 @@ const EXERCISES = [
 
 const PROGRAM = {
   1:{ name:"PUSH — Force", type:"Push", cardio:"20 min tapis incliné (4km/h / 15%)", exercises:[
-    { exoId:"press_vert", sets:4, repsMin:8, repsMax:12, intensityPct:null, note:"Amplitude complète" },
-    { exoId:"leg_curl_al", sets:3, repsMin:10, repsMax:12, intensityPct:null, note:"Ischio en allongé" },
     { exoId:"dc",       sets:4, repsMin:4,  repsMax:6,  intensityPct:87.5, note:"Force max" },
     { exoId:"di",       sets:3, repsMin:6,  repsMax:8,  intensityPct:77.5, note:"Accent haut pec" },
     { exoId:"dips",     sets:3, repsMin:6,  repsMax:8,  intensityPct:null, note:"Lest max possible" },
@@ -75,6 +79,9 @@ const PROGRAM = {
     { exoId:"poulie_lat",sets:3,repsMin:12, repsMax:15, intensityPct:null, note:"Finition" },
     { exoId:"bf",       sets:4, repsMin:8,  repsMax:10, intensityPct:null, note:"Coudes fixes" },
     { exoId:"tirage_uni",sets:3,repsMin:12, repsMax:15, intensityPct:null, note:"Isolation triceps" },
+    { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
+    { exoId:"rdj",          sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
+    { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
   ]},
   2:{ name:"PULL — Force", type:"Pull", cardio:"20 min tapis incliné (4km/h / 15%)", exercises:[
     { exoId:"trac_neutre",sets:4,repsMin:5,repsMax:8,  intensityPct:null, note:"Lestées si possible" },
@@ -82,6 +89,9 @@ const PROGRAM = {
     { exoId:"th",        sets:4,repsMin:8, repsMax:10, intensityPct:null, note:"Rétraction scapulaire" },
     { exoId:"curl_marteau",sets:3,repsMin:10,repsMax:12,intensityPct:null,note:"Brachial + biceps" },
     { exoId:"curl_classique",sets:3,repsMin:10,repsMax:12,intensityPct:null,note:"Supination en haut" },
+    { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
+    { exoId:"rdj",          sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
+    { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
   ]},
   3:{ name:"LEGS — Lourd", type:"Legs", cardio:null, exercises:[
     { exoId:"squat",    sets:5,repsMin:4, repsMax:6,  intensityPct:87.5, note:"Priorité absolue" },
@@ -89,6 +99,9 @@ const PROGRAM = {
     { exoId:"squat_disque",sets:3,repsMin:8,repsMax:10,intensityPct:null,note:"Quadriceps ext." },
     { exoId:"leg_ext",  sets:3,repsMin:12,repsMax:15, intensityPct:null, note:"Finition quadri" },
     { exoId:"leg_curl", sets:4,repsMin:10,repsMax:12, intensityPct:null, note:"Ischio, amplitude max" },
+    { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
+    { exoId:"rdj",          sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
+    { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
   ]},
   4:{ name:"PUSH — Variante", type:"Push", cardio:"20 min tapis incliné (4km/h / 15%)", exercises:[
     { exoId:"dc",       sets:4,repsMin:4, repsMax:6,  intensityPct:87.5, note:"Force max" },
@@ -99,6 +112,9 @@ const PROGRAM = {
     { exoId:"poulie_lat",sets:3,repsMin:12,repsMax:15,intensityPct:null, note:"Finition" },
     { exoId:"bf",       sets:4,repsMin:8, repsMax:10, intensityPct:null, note:"Coudes fixes" },
     { exoId:"cables",   sets:3,repsMin:12,repsMax:15, intensityPct:null, note:"Finition pec" },
+    { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
+    { exoId:"rdj",          sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
+    { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
   ]},
   5:{ name:"PULL — Variante", type:"Pull", cardio:"20 min tapis incliné (4km/h / 15%)", exercises:[
     { exoId:"trac_neutre",sets:4,repsMin:5,repsMax:8, intensityPct:null, note:"Lestées si possible" },
@@ -107,6 +123,9 @@ const PROGRAM = {
     { exoId:"facepull", sets:3,repsMin:12,repsMax:15, intensityPct:null, note:"Santé épaule" },
     { exoId:"curl_marteau",sets:3,repsMin:10,repsMax:12,intensityPct:null,note:"Brachial + biceps" },
     { exoId:"curl_incline",sets:3,repsMin:10,repsMax:12,intensityPct:null,note:"Alternative curl" },
+    { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
+    { exoId:"rdj",          sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
+    { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
   ]},
   6:{ name:"REPOS ACTIF", type:null, cardio:"40 min marche rapide", exercises:[] },
   0:{ name:"REPOS TOTAL", type:null, cardio:null, exercises:[] },
@@ -172,7 +191,7 @@ const WEEK_KEY = () => { const n=new Date(),s=new Date(n.getFullYear(),0,1); ret
 const dateToKey = d => d.toISOString().split("T")[0];
 const keyToDate = k => new Date(k+"T12:00:00");
 const fmtShort = k => keyToDate(k).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"});
-const catColor = { Push:"#FF6B35", Pull:"#4ECDC4", Legs:"#FFE66D" };
+const catColor = { Push:"#FF6B35", Pull:"#4ECDC4", Legs:"#FFE66D", Core:"#AA88FF" };
 
 // ── UI PRIMITIVES ─────────────────────────────────────────────────────────
 const Card = ({ children, style={} }) => (
@@ -246,7 +265,7 @@ const BarChart = ({ data }) => {
 const ExoSelector = ({ filterCat, setFilterCat, selectedExo, setSelectedExo }) => (
   <>
     <div style={{display:"flex",gap:6,marginBottom:10}}>
-      {["Push","Pull","Legs"].map(cat=>(
+      {["Push","Pull","Legs","Core"].map(cat=>
         <button key={cat} onClick={()=>{setFilterCat(cat);setSelectedExo(EXERCISES.find(e=>e.category===cat)?.id);}}
           style={{flex:1,padding:9,borderRadius:10,border:"none",cursor:"pointer",background:filterCat===cat?catColor[cat]:"#111118",color:filterCat===cat?"#000":"#555",fontWeight:filterCat===cat?800:400,fontSize:14}}>{cat}</button>
       ))}
@@ -341,6 +360,7 @@ function Tracker({ user, onLogout }) {
   const [cardioLog,  setCardioLog]  = useState({});
   const [calMangees, setCalMangees] = useState({});
   const [deficitLog, setDeficitLog] = useState({});
+  const [selectedCardioDate, setSelectedCardioDate] = useState(todayKey());
 
   // ── LOAD depuis Supabase ───────────────────────────────────────────────
   useEffect(() => {
@@ -424,7 +444,7 @@ function Tracker({ user, onLogout }) {
   const actFactor=ACTIVITY_LEVELS.find(a=>a.id===profile.activite)?.factor||1.725;
   const tdee=Math.round(mbr*actFactor);
   const objData=OBJECTIFS.find(o=>o.id===objectif)||OBJECTIFS[4];
-  const todayCardio=cardioLog[todayKey()]||[];
+  const todayCardio = cardioLog[selectedCardioDate] || [];
   const totalKcalCardio=todayCardio.reduce((s,e)=>s+e.kcal,0);
   const cibleKcal=tdee+objData.deficit+totalKcalCardio;
   const cibleProt=Math.round(poids*objData.protPerKg);
@@ -518,8 +538,8 @@ function Tracker({ user, onLogout }) {
   const kcalEstimee=isIncline?calcTapisKcal():(cardioVal?(isSteps?Math.round((parseFloat(cardioVal)/1000)*poids*0.5):isDistance?Math.round(parseFloat(cardioVal)*poids*(cardioTypeData?.kcalPerKm||1)):Math.round(parseFloat(cardioVal)*(cardioTypeData?.kcalPerMin?.[cardioIntensite]||10))):0);
 
   const logCardio=()=>{
-    if(isIncline){if(kcalEstimee<=0)return;setCardioLog({...cardioLog,[todayKey()]:[...todayCardio,{type:cardioType,nom:`Tapis ${tapisVitesse}km/h ${tapisPente}%`,val:parseFloat(tapisDuree),unit:"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}]});setTapisVitesse("");setTapisPente("");setTapisDuree("");}
-    else{const val=parseFloat(cardioVal);if(isNaN(val)||val<=0)return;setCardioLog({...cardioLog,[todayKey()]:[...todayCardio,{type:cardioType,nom:cardioTypeData.name,val,unit:isSteps?"pas":isDistance?"km":"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}]});setCardioVal("");}
+    if(isIncline){if(kcalEstimee<=0)return;setCardioLog({...cardioLog,[selectedCardioDate]:[...todayCardio,{type:cardioType,nom:`Tapis ${tapisVitesse}km/h ${tapisPente}%`,val:parseFloat(tapisDuree),unit:"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}]});setTapisVitesse("");setTapisPente("");setTapisDuree("");}
+    else{const val=parseFloat(cardioVal);if(isNaN(val)||val<=0)return;setCardioLog({...cardioLog,[selectedCardioDate]:[...todayCardio,{type:cardioType,nom:cardioTypeData.name,val,unit:isSteps?"pas":isDistance?"km":"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}]});setCardioVal("");}
     notify(`Cardio logué : ~${kcalEstimee} kcal 🔥`);
   };
 
@@ -867,6 +887,15 @@ function Tracker({ user, onLogout }) {
             </Card>
             <Card>
               <Label>Cardio du jour</Label>
+              <div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+  <button onClick={()=>{const d=keyToDate(selectedCardioDate);d.setDate(d.getDate()-1);setSelectedCardioDate(dateToKey(d));}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
+  <div style={{textAlign:"center"}}>
+    <div style={{fontWeight:800,fontSize:14,color:selectedCardioDate===todayKey()?"#FF6B35":"#F0F0F0"}}>
+      {selectedCardioDate===todayKey()?"📅 Aujourd'hui":fmtShort(selectedCardioDate)}
+    </div>
+  </div>
+  <button onClick={()=>{const d=keyToDate(selectedCardioDate);d.setDate(d.getDate()+1);const nk=dateToKey(d);if(nk<=todayKey())setSelectedCardioDate(nk);}} disabled={selectedCardioDate===todayKey()} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:selectedCardioDate===todayKey()?"#333":"#888",padding:"8px 14px",cursor:selectedCardioDate===todayKey()?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
+</div>
               {totalKcalCardio>0&&<div style={{background:"linear-gradient(135deg,#1A0A00,#2A1000)",border:"1px solid #FF6B3533",borderRadius:10,padding:"12px 14px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:22,fontWeight:900,color:"#FF6B35"}}>+{totalKcalCardio} kcal</div><div style={{fontSize:11,color:"#555"}}>→ Cible ajustée</div></div><div style={{fontSize:32}}>🔥</div></div>}
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
                 {CARDIO_TYPES.map(c=><button key={c.id} onClick={()=>setCardioType(c.id)} style={{padding:10,borderRadius:12,cursor:"pointer",background:cardioType===c.id?"#FF6B3522":"#0D0D14",border:`1px solid ${cardioType===c.id?"#FF6B35":"#1E1E2E"}`,color:cardioType===c.id?"#FF6B35":"#555",fontWeight:cardioType===c.id?800:400,fontSize:12,textAlign:"left"}}><span style={{fontSize:16}}>{c.emoji}</span> {c.name}</button>)}
@@ -888,7 +917,7 @@ function Tracker({ user, onLogout }) {
                 </>
               )}
               <Btn onClick={logCardio} color="#FF6B35">🔥 Logger le cardio</Btn>
-              {todayCardio.length>0&&<div style={{marginTop:12}}>{todayCardio.map((s,i)=><div key={i} style={{background:"#0D0D14",border:"1px solid #1E1E2E",borderRadius:10,padding:"10px 14px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontWeight:700,fontSize:13}}>{CARDIO_TYPES.find(c=>c.id===s.type)?.emoji} {s.nom}</div><div style={{fontSize:11,color:"#555"}}>{s.val} {s.unit} • {s.heure}</div></div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{fontSize:16,fontWeight:900,color:"#FF6B35"}}>+{s.kcal}</div><button onClick={()=>setCardioLog({...cardioLog,[todayKey()]:todayCardio.filter((_,j)=>j!==i)})} style={{background:"#2A0A0A",border:"1px solid #FF444433",borderRadius:8,color:"#FF4444",padding:"5px 8px",cursor:"pointer",fontSize:12}}>🗑️</button></div></div>)}</div>}
+              {todayCardio.length>0&&<div style={{marginTop:12}}>{todayCardio.map((s,i)=><div key={i} style={{background:"#0D0D14",border:"1px solid #1E1E2E",borderRadius:10,padding:"10px 14px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontWeight:700,fontSize:13}}>{CARDIO_TYPES.find(c=>c.id===s.type)?.emoji} {s.nom}</div><div style={{fontSize:11,color:"#555"}}>{s.val} {s.unit} • {s.heure}</div></div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{fontSize:16,fontWeight:900,color:"#FF6B35"}}>+{s.kcal}</div><button onClick={()=>setCardioLog({...cardioLog,[selectedCardioDate]:todayCardio.filter((_,j)=>j!==i)})} style={{background:"#2A0A0A",border:"1px solid #FF444433",borderRadius:8,color:"#FF4444",padding:"5px 8px",cursor:"pointer",fontSize:12}}>🗑️</button></div></div>)}</div>}
             </Card>
           </>
         )}
