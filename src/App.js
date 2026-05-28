@@ -561,7 +561,13 @@ function Tracker({ user, onLogout }) {
   const chargeChartData=Object.entries(sessions[statsExo]||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12).map(([date,sets])=>({val:sets.length?Math.max(...sets.map(s=>s.weight)):0,label:fmtShort(date)}));
   const repsChartData=Object.entries(sessions[statsExo]||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12).map(([date,sets])=>({val:sets.length?+(sets.reduce((s,x)=>s+x.reps,0)/sets.length).toFixed(1):0,label:fmtShort(date)}));
   const rm1ChartData=Object.entries(history[statsExo]||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12).map(([wk,d])=>({val:d.estimated1RM,label:`S${wk.split("-W")[1]||""}`}));
-  const deficitChartData=Object.entries(deficitLog).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14).map(([date,def])=>({deficit:Math.round(def),label:new Date(date).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}));
+ const deficitChartData=(()=>{
+  const entries=Object.entries(calMangees).filter(([,cal])=>parseInt(cal)>0).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14);
+  return entries.map(([date,cal])=>{
+    const cardioJour=(cardioLog[date]||[]).reduce((c,e)=>c+e.kcal,0);
+    return{deficit:Math.round((tdee+cardioJour)-parseInt(cal)),label:new Date(date).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})};
+  });
+})();
 
   const askCoach=async()=>{
     if(!coachInput.trim()||coachLoading)return;
