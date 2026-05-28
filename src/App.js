@@ -36,6 +36,8 @@ function useDebounce(value, delay) {
 
 // ── DATA ──────────────────────────────────────────────────────────────────
 const EXERCISES = [
+  { id:"press_vert", name:"Presse Verticale", emoji:"🦾", default1RM:120, category:"Legs" },
+  { id:"leg_curl_al", name:"Leg Curl Allongé", emoji:"🦵", default1RM:40, category:"Legs" },
   { id:"dc",    name:"Développé Couché",     emoji:"🏋️", default1RM:95,  category:"Push" },
   { id:"di",    name:"Développé Incliné",    emoji:"📐", default1RM:60,  category:"Push" },
   { id:"dm",    name:"Développé Militaire",  emoji:"🔝", default1RM:70,  category:"Push" },
@@ -63,6 +65,8 @@ const EXERCISES = [
 
 const PROGRAM = {
   1:{ name:"PUSH — Force", type:"Push", cardio:"20 min tapis incliné (4km/h / 15%)", exercises:[
+    { exoId:"press_vert", sets:4, repsMin:8, repsMax:12, intensityPct:null, note:"Amplitude complète" },
+    { exoId:"leg_curl_al", sets:3, repsMin:10, repsMax:12, intensityPct:null, note:"Ischio en allongé" },
     { exoId:"dc",       sets:4, repsMin:4,  repsMax:6,  intensityPct:87.5, note:"Force max" },
     { exoId:"di",       sets:3, repsMin:6,  repsMax:8,  intensityPct:77.5, note:"Accent haut pec" },
     { exoId:"dips",     sets:3, repsMin:6,  repsMax:8,  intensityPct:null, note:"Lest max possible" },
