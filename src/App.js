@@ -860,8 +860,12 @@ function Tracker({ user, onLogout }) {
 
               {selectedCalDate !== todayKey() && (
                 <Btn onClick={async()=>{
-                  await saveUserData(user, {maxes,history,sessions,profile,objectif,poidsLog,cardioLog,calMangees,deficitLog});
-                  notify("✅ Jour sauvegardé !");
+                  try {
+                    await saveUserData(user, {maxes,history,sessions,profile,objectif,poidsLog,cardioLog,calMangees,deficitLog});
+                    notify("✅ Jour sauvegardé !");
+                  } catch(e) {
+                    notify("❌ Erreur : " + e.message);
+                  }
                 }} color="#4ECDC4" textColor="#000" style={{marginBottom:12}}>
                   💾 Sauvegarder ce jour
                 </Btn>
