@@ -14,7 +14,28 @@ const loadUserData = async (username) => {
 const saveUserData = async (username, userData) => {
   await supabase.from("ppl_data").upsert({ username, data: userData, updated_at: new Date().toISOString() });
 };
-
+const forceSaveCloud = async () => {
+    setIsSaving(true);
+    try {
+      // On emballe exactement tout ton profil à la seconde T
+      const payload = { maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees };
+      
+      const { error } = await supabase.from("ppl_data").upsert({ 
+        username: user, 
+        data: payload, 
+        updated_at: new Date().toISOString() 
+      });
+      
+      if (error) {
+        alert("❌ ERREUR SUPABASE : " + error.message);
+      } else {
+        notify("✅ Calories gravées dans le Cloud !");
+      }
+    } catch(e) {
+      alert("❌ ERREUR CODE : " + e.message);
+    }
+    setIsSaving(false);
+  };
 function useDebounce(value, delay) {
   const [dv, setDv] = useState(value);
   useEffect(() => { const h = setTimeout(() => setDv(value), delay); return () => clearTimeout(h); }, [value, delay]);
@@ -886,16 +907,11 @@ function Tracker({ user, onLogout }) {
                 <NumInput 
                   value={calMangees[selectedNutriDate]||""} 
                   onChange={v=>setCalMangees(prev=>({...prev,[selectedNutriDate]:v}))} 
-                  placeholder={`Cible du jour : ${nutriCibleKcal} kcal`} 
+                  placeholder={`Cible : ${nutriCibleKcal} kcal`} 
                   style={{flex:1, border:"1px solid #FF6B3555"}}
                 />
                 <button 
-                  onClick={async () => {
-                    setIsSaving(true);
-                    await saveUserData(user, { maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees });
-                    setIsSaving(false);
-                    notify("✅ Calories sauvegardées !");
-                  }} 
+                  onClick={forceSaveCloud} 
                   style={{background:"#FF6B35", border:"none", borderRadius:10, color:"#000", fontWeight:900, padding:"0 16px", cursor:"pointer", fontSize:14}}
                 >
                   OK 💾
