@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
@@ -12,8 +12,15 @@ const loadUserData = async (username) => {
 };
 
 const saveUserData = async (username, userData) => {
-  await supabase.from("ppl_data").upsert({ username, data: userData, updated_at: new Date().toISOString() });
+  const { error } = await supabase.from("ppl_data").upsert({ username, data: userData, updated_at: new Date().toISOString() });
+  if (error) throw error;
 };
+
+function useDebounce(value, delay) {
+  const [dv, setDv] = useState(value);
+  useEffect(() => { const h = setTimeout(() => setDv(value), delay); return () => clearTimeout(h); }, [value, delay]);
+  return dv;
+}
 
 const EXERCISES = [
   { id:"crunch_cable", name:"Crunch Câble", emoji:"🔗", default1RM:30, category:"Core" },
@@ -155,7 +162,7 @@ const REST_OPTIONS = [
 const TABS = [
   { id:"programme", label:"🗓️ Séance" },
   { id:"log", label:"📝 Logger" },
-  { id:"kcal", label:"🍽️ Nutrition" },
+  { id:"kcal", label:"🍽️ Calories" },
   { id:"poids", label:"⚖️ Poids" },
   { id:"stats", label:"📈 Stats" },
   { id:"calc", label:"📊 Charges" },
@@ -257,7 +264,6 @@ const ExoSelector = ({ filterCat, setFilterCat, selectedExo, setSelectedExo }) =
 function LoginScreen({ onLogin }) {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-
   const handleLogin = async () => {
     const trimmed = name.trim().toLowerCase();
     if (!trimmed) return;
@@ -268,7 +274,6 @@ function LoginScreen({ onLogin }) {
     } catch { onLogin(trimmed, false); }
     setLoading(false);
   };
-
   return (
     <div style={{minHeight:"100vh",background:"#0A0A0F",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{width:"100%",maxWidth:400}}>
@@ -310,9 +315,7 @@ function Tracker({ user, onLogout }) {
   const [poidsLog, setPoidsLog] = useState({});
   const [cardioLog, setCardioLog] = useState({});
   const [calMangees, setCalMangees] = useState({});
-  const [notification, setNotification] = useState(null);
-
-  const notify = (msg, type="success") => { setNotification({msg,type}); setTimeout(() => setNotification(null), 3000); };
+  const [deficitLog, setDeficitLog] = useState({});
 
   useEffect(() => {
     const init = async () => {
@@ -326,41 +329,45 @@ function Tracker({ user, onLogout }) {
         if (data.poidsLog) setPoidsLog(data.poidsLog);
         if (data.cardioLog) setCardioLog(data.cardioLog);
         if (data.calMangees) setCalMangees(data.calMangees);
+        if (data.deficitLog) setDeficitLog(data.deficitLog);
       }
       setIsLoaded(true);
     };
     init();
   }, [user]);
 
-  // 🛡️ LE BOUCLIER : On emballe tout dans un seul objet mémorisé pour éviter les bugs avec le chrono
-  const userData = useMemo(() => {
-    return { maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees };
-  }, [maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees]);
+  // Ref qui contient TOUJOURS le dernier état → sauvegarde fiable
+  const latestState = useRef({});
+  latestState.current = { maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees, deficitLog };
 
-  // 🚀 LA SAUVEGARDE INTELLIGENTE : Elle attend que les données soient chargées et elle ignore le chrono
+  const userData = latestState.current;
+  const debouncedData = useDebounce(userData, 2000);
+
   useEffect(() => {
     if (!isLoaded) return;
-    
-    // Déclenche une sauvegarde 2 secondes après que tu aies fini de taper
-    const timeoutId = setTimeout(() => {
-      setIsSaving(true);
-      saveUserData(user, userData).finally(() => setIsSaving(false));
-    }, 2000);
+    setIsSaving(true);
+    saveUserData(user, debouncedData).finally(() => setIsSaving(false));
+  }, [debouncedData]);
 
-    return () => clearTimeout(timeoutId); // Si tu retapes avant 2s, ça annule l'ancienne sauvegarde
-  }, [userData, isLoaded, user]);
+  // Sauvegarde immédiate et fiable (utilise le ref → jamais de données périmées)
+  const saveNow = async () => {
+    try {
+      setIsSaving(true);
+      await saveUserData(user, latestState.current);
+      notify("✅ Enregistré dans le cloud !");
+    } catch(e) {
+      notify("❌ Erreur : " + (e.message || "sauvegarde échouée"));
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState("programme");
   const [selectedExo, setSelectedExo] = useState("dc");
   const [filterCat, setFilterCat] = useState("Push");
   const [selectedSessionDate, setSelectedSessionDate] = useState(todayKey());
-  
-  const [selectedNutriDate, setSelectedNutriDate] = useState(todayKey());
-  
-  const [customRecapDate, setCustomRecapDate] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 7); return dateToKey(d);
-  });
-
+  const [selectedCalDate, setSelectedCalDate] = useState(todayKey());
+  const [recapStart, setRecapStart] = useState(() => { const d=new Date(); d.setDate(d.getDate()-6); return dateToKey(d); });
   const [logWeight, setLogWeight] = useState("");
   const [logReps, setLogReps] = useState("");
   const [editingMax, setEditingMax] = useState(false);
@@ -369,7 +376,7 @@ function Tracker({ user, onLogout }) {
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
   const [timerEndTime, setTimerEndTime] = useState(null);
-  
+  const [notification, setNotification] = useState(null);
   const [cardioType, setCardioType] = useState("pas");
   const [cardioVal, setCardioVal] = useState("");
   const [cardioIntensite, setCardioIntensite] = useState("med");
@@ -401,7 +408,9 @@ function Tracker({ user, onLogout }) {
 
   const startTimer = dur => setTimerEndTime(Date.now() + dur * 1000);
   const stopTimer = () => { setTimerEndTime(null); setTimerActive(false); setTimerSeconds(0); };
-  
+  const notify = (msg, type="success") => { setNotification({msg,type}); setTimeout(() => setNotification(null), 3000); };
+
+  // ── Calculs nutrition de base ──────────────────────────────────────────
   const poids = parseFloat(profile.poids) || 80;
   const mbr = profile.sexe === "homme"
     ? Math.round(10*poids + 6.25*(parseFloat(profile.taille)||186) - 5*(parseFloat(profile.age)||22) + 5)
@@ -409,61 +418,47 @@ function Tracker({ user, onLogout }) {
   const actFactor = ACTIVITY_LEVELS.find(a=>a.id===profile.activite)?.factor || 1.725;
   const tdee = Math.round(mbr * actFactor);
   const objData = OBJECTIFS.find(o=>o.id===objectif) || OBJECTIFS[4];
-  
-  const nutriCardioData = cardioLog[selectedNutriDate] || [];
-  const nutriCardioTotal = nutriCardioData.reduce((s,e)=>s+e.kcal, 0);
-  const nutriMangeTotal = parseInt(calMangees[selectedNutriDate]) || 0;
-  const nutriCibleKcal = tdee + objData.deficit + nutriCardioTotal; 
-  const nutriDeficitGenere = (nutriMangeTotal > 0) ? (tdee + nutriCardioTotal) - nutriMangeTotal : null;
 
-  const headerCardioTotal = (cardioLog[todayKey()] || []).reduce((s,e)=>s+e.kcal, 0);
-  const headerCibleKcal = tdee + objData.deficit + headerCardioTotal;
-  const headerMangeTotal = parseInt(calMangees[todayKey()]) || 0;
-  const headerDeficitGenere = (headerMangeTotal > 0) ? (tdee + headerCardioTotal) - headerMangeTotal : null;
+  // Cardio kcal pour un jour donné
+  const cardioKcalForDay = (dateK) => (cardioLog[dateK] || []).reduce((s,e)=>s+e.kcal, 0);
 
-  const cibleProt = Math.round(poids * objData.protPerKg);
-  const cibleLip = Math.round(poids * objData.fatPerKg);
-  const cibleGluc = Math.max(0, Math.round((headerCibleKcal - cibleProt*4 - cibleLip*9) / 4));
+  // Maintenance d'un jour = TDEE + cardio de ce jour
+  const maintenanceForDay = (dateK) => tdee + cardioKcalForDay(dateK);
 
-  const getRecapInfos = (startKey, endKey) => {
-    let depenseTotal = 0;
-    let mangeTotal = 0;
-    let jours = 0;
-    
-    Object.keys(calMangees).forEach(date => {
-      if (date >= startKey && date <= endKey) {
-        const cal = parseInt(calMangees[date]);
-        if (cal > 0) {
-          jours++;
-          mangeTotal += cal;
-          const cardioJour = (cardioLog[date] || []).reduce((sum, item) => sum + item.kcal, 0);
-          depenseTotal += (tdee + cardioJour);
-        }
-      }
-    });
-    return { jours, depense: depenseTotal, mange: mangeTotal, deficit: depenseTotal - mangeTotal };
+  // Déficit d'un jour = maintenance - mangé (positif = en déficit = bien)
+  const deficitForDay = (dateK) => {
+    const cal = parseInt(calMangees[dateK]) || 0;
+    if (cal === 0) return null;
+    return maintenanceForDay(dateK) - cal;
   };
 
-  const recapSemaine = (() => {
-    const now = new Date(), dow = now.getDay()===0?7:now.getDay(), lundi = new Date(now);
-    lundi.setDate(now.getDate() - dow + 1);
-    return getRecapInfos(dateToKey(lundi), todayKey());
-  })();
+  // Cible kcal du jour sélectionné (pour atteindre l'objectif)
+  const cibleKcal = maintenanceForDay(selectedCalDate) + objData.deficit;
+  const cibleProt = Math.round(poids * objData.protPerKg);
+  const cibleLip = Math.round(poids * objData.fatPerKg);
+  const cibleGluc = Math.max(0, Math.round((cibleKcal - cibleProt*4 - cibleLip*9) / 4));
 
-  const recapCustomStats = getRecapInfos(customRecapDate, todayKey());
+  // Pour le header : valeurs d'aujourd'hui
+  const calAujourdhui = parseInt(calMangees[todayKey()] || 0);
+  const totalKcalCardioToday = cardioKcalForDay(todayKey());
+  const deficitReelToday = calAujourdhui > 0 ? maintenanceForDay(todayKey()) - calAujourdhui : null;
+  const cibleKcalToday = maintenanceForDay(todayKey()) + objData.deficit;
+
+  // Cumul d'une plage de dates
+  const cumulDeficitRange = (startK, endK) => {
+    return Object.entries(calMangees)
+      .filter(([k]) => k >= startK && k <= endK && (parseInt(calMangees[k])||0) > 0)
+      .reduce((s, [k]) => s + (maintenanceForDay(k) - parseInt(calMangees[k])), 0);
+  };
+
+  const lundiKey = (() => { const now=new Date(),dow=now.getDay()===0?7:now.getDay(),l=new Date(now); l.setDate(now.getDate()-dow+1); return dateToKey(l); })();
+  const cumulSemaine = cumulDeficitRange(lundiKey, todayKey());
+  const cumulRecap = cumulDeficitRange(recapStart, todayKey());
+  const nbJoursRecap = Object.keys(calMangees).filter(k => k>=recapStart && k<=todayKey() && (parseInt(calMangees[k])||0)>0).length;
 
   const deficitChartData = (() => {
-    const datesSet = new Set([...Object.keys(calMangees), ...Object.keys(cardioLog)]);
-    const allDates = Array.from(datesSet).sort().slice(-14);
-    
-    return allDates.filter(d => parseInt(calMangees[d]) > 0).map(date => {
-      const eaten = parseInt(calMangees[date]);
-      const cardioJour = (cardioLog[date] || []).reduce((s,e)=>s+e.kcal, 0);
-      return { 
-        deficit: Math.round((tdee + cardioJour) - eaten), 
-        label: new Date(date).toLocaleDateString("fr-FR",{day:"numeric",month:"short"}) 
-      };
-    });
+    const entries = Object.entries(calMangees).filter(([,cal])=>parseInt(cal)>0).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14);
+    return entries.map(([date]) => ({ deficit: Math.round(maintenanceForDay(date) - parseInt(calMangees[date])), label: new Date(date).toLocaleDateString("fr-FR",{day:"numeric",month:"short"}) }));
   })();
 
   const todayDow = new Date().getDay();
@@ -473,14 +468,9 @@ function Tracker({ user, onLogout }) {
   const exo = EXERCISES.find(e=>e.id===selectedExo) || EXERCISES[0];
   const current1RM = maxes[selectedExo] || exo.default1RM;
 
-  const navDaySession = offset => {
+  const navDay = offset => {
     const d = keyToDate(selectedSessionDate); d.setDate(d.getDate() + offset);
     const nk = dateToKey(d); if (nk <= todayKey()) setSelectedSessionDate(nk);
-  };
-
-  const navDayNutri = offset => {
-    const d = keyToDate(selectedNutriDate); d.setDate(d.getDate() + offset);
-    const nk = dateToKey(d); if (nk <= todayKey()) setSelectedNutriDate(nk);
   };
 
   const getRecommendedWeight = (exoId, intensityPct) => {
@@ -538,6 +528,7 @@ function Tracker({ user, onLogout }) {
     notify("Série supprimée");
   };
 
+  // ── Cardio (lié à la date sélectionnée dans les Calories) ───────────────
   const cardioTypeData = CARDIO_TYPES.find(c=>c.id===cardioType);
   const isDistance = !!cardioTypeData?.isDistance, isIncline = !!cardioTypeData?.isIncline, isSteps = !!cardioTypeData?.isSteps;
   const calcTapisKcal = () => {
@@ -547,20 +538,29 @@ function Tracker({ user, onLogout }) {
     return Math.round(MET * poids * (d/60));
   };
   const kcalEstimee = isIncline ? calcTapisKcal() : (cardioVal ? (isSteps ? Math.round((parseFloat(cardioVal)/1000)*poids*0.5) : isDistance ? Math.round(parseFloat(cardioVal)*poids*(cardioTypeData?.kcalPerKm||1)) : Math.round(parseFloat(cardioVal)*(cardioTypeData?.kcalPerMin?.[cardioIntensite]||10))) : 0);
+  const cardioDuJour = cardioLog[selectedCalDate] || [];
 
   const logCardio = () => {
+    let entry;
     if (isIncline) {
       if (kcalEstimee<=0) return;
-      setCardioLog({...cardioLog,[selectedNutriDate]:[...nutriCardioData,{type:cardioType,nom:`Tapis ${tapisVitesse}km/h ${tapisPente}%`,val:parseFloat(tapisDuree),unit:"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}]});
+      entry = {type:cardioType,nom:`Tapis ${tapisVitesse}km/h ${tapisPente}%`,val:parseFloat(tapisDuree),unit:"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
       setTapisVitesse(""); setTapisPente(""); setTapisDuree("");
     } else {
       const val = parseFloat(cardioVal); if (isNaN(val)||val<=0) return;
-      setCardioLog({...cardioLog,[selectedNutriDate]:[...nutriCardioData,{type:cardioType,nom:cardioTypeData.name,val,unit:isSteps?"pas":isDistance?"km":"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}]});
+      entry = {type:cardioType,nom:cardioTypeData.name,val,unit:isSteps?"pas":isDistance?"km":"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
       setCardioVal("");
     }
-    notify(`Cardio logué le ${fmtShort(selectedNutriDate)} : ~${kcalEstimee} kcal 🔥`);
+    setCardioLog(prev=>({...prev,[selectedCalDate]:[...(prev[selectedCalDate]||[]),entry]}));
+    notify(`Cardio logué : ~${kcalEstimee} kcal 🔥`);
   };
 
+  const deleteCardio = (idx) => {
+    setCardioLog(prev=>({...prev,[selectedCalDate]:(prev[selectedCalDate]||[]).filter((_,j)=>j!==idx)}));
+    notify("Cardio supprimé");
+  };
+
+  // ── Poids ──────────────────────────────────────────────────────────────
   const logPoids = () => {
     const val = parseFloat(inputPoids.toString().replace(",", "."));
     if (isNaN(val)||val<30||val>200) return;
@@ -591,7 +591,7 @@ function Tracker({ user, onLogout }) {
     const newHist = [...coachHistory, {role:"user",content:userMsg}];
     setCoachHistory(newHist); setCoachLoading(true);
     try {
-      const sys = `Tu es un coach fitness expert, direct, en français. Profil: ${profile.age}ans, ${profile.taille}cm, ${poids}kg. Objectif: ${objData.label} → ${headerCibleKcal}kcal/j. Macros: ${cibleProt}g P/${cibleGluc}g G/${cibleLip}g L. PPL 5j/sem. 1RM DC:${maxes.dc||95}kg Squat:${maxes.squat||100}kg. Réponds en max 150 mots.`;
+      const sys = `Tu es un coach fitness expert, direct, en français. Profil: ${profile.age}ans, ${profile.taille}cm, ${poids}kg. Objectif: ${objData.label} → ${cibleKcalToday}kcal/j. Macros: ${cibleProt}g P/${cibleGluc}g G/${cibleLip}g L. PPL 5j/sem. 1RM DC:${maxes.dc||95}kg Squat:${maxes.squat||100}kg. Réponds en max 150 mots.`;
       const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:400,system:sys,messages:newHist})});
       const data = await res.json();
       setCoachHistory([...newHist, {role:"assistant",content:data.content?.[0]?.text||"Erreur."}]);
@@ -624,7 +624,7 @@ function Tracker({ user, onLogout }) {
         </div>
       )}
 
-      {/* HEADER TOUJOURS SUR "AUJOURD'HUI" */}
+      {/* HEADER */}
       <div style={{background:"#111118",borderBottom:"1px solid #1A1A2E",padding:"16px 20px 12px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
@@ -632,19 +632,19 @@ function Tracker({ user, onLogout }) {
             <div style={{fontSize:18,fontWeight:900,letterSpacing:-1}}>Salut <span style={{color:"#FF6B35",textTransform:"capitalize"}}>{user}</span> 👋</div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontSize:22,fontWeight:900,color:"#FF6B35"}}>{headerCibleKcal.toLocaleString()}</div>
-            <div style={{fontSize:9,color:"#555"}}>kcal cible aujourd'hui</div>
+            <div style={{fontSize:22,fontWeight:900,color:"#FF6B35"}}>{cibleKcalToday.toLocaleString()}</div>
+            <div style={{fontSize:9,color:"#555"}}>kcal cible</div>
             <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"flex-end",marginTop:2}}>
-              {isSaving && <div style={{fontSize:9,color:"#444"}}>💾 auto-save...</div>}
+              {isSaving && <div style={{fontSize:9,color:"#444"}}>💾 sauvegarde...</div>}
               <button onClick={onLogout} style={{background:"transparent",border:"none",color:"#333",fontSize:10,cursor:"pointer"}}>changer d'utilisateur</button>
             </div>
           </div>
         </div>
         <div style={{display:"flex",gap:8,marginTop:10}}>
           {[
-            {label:"Mangé", val:headerMangeTotal>0?`${headerMangeTotal} kcal`:"—", color:headerMangeTotal>0?"#F0F0F0":"#444"},
-            {label:"Cardio", val:headerCardioTotal>0?`+${headerCardioTotal}`:"—", color:headerCardioTotal>0?"#FF6B35":"#444"},
-            {label:"Déficit", val:headerDeficitGenere!==null?`${headerDeficitGenere>0?"+":""}${headerDeficitGenere}`:"—", color:headerDeficitGenere!==null?(headerDeficitGenere>0?"#44CC44":headerDeficitGenere<-200?"#FF4444":"#FFB300"):"#444"},
+            {label:"Mangé", val:calAujourdhui>0?`${calAujourdhui} kcal`:"—", color:calAujourdhui>0?"#F0F0F0":"#444"},
+            {label:"Cardio", val:totalKcalCardioToday>0?`+${totalKcalCardioToday}`:"—", color:totalKcalCardioToday>0?"#FF6B35":"#444"},
+            {label:"Déficit", val:deficitReelToday!==null?`${deficitReelToday>0?"+":""}${deficitReelToday}`:"—", color:deficitReelToday!==null?(deficitReelToday>0?"#44CC44":deficitReelToday<-200?"#FF4444":"#FFB300"):"#444"},
           ].map(item=>(
             <div key={item.label} style={{flex:1,background:"#0D0D14",borderRadius:8,padding:"6px 8px",textAlign:"center"}}>
               <div style={{fontSize:9,color:"#444"}}>{item.label}</div>
@@ -711,12 +711,12 @@ function Tracker({ user, onLogout }) {
           <>
             <ExoSelector filterCat={filterCat} setFilterCat={setFilterCat} selectedExo={selectedExo} setSelectedExo={setSelectedExo}/>
             <div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <button onClick={()=>navDaySession(-1)} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
+              <button onClick={()=>navDay(-1)} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
               <div style={{textAlign:"center"}}>
                 <div style={{fontWeight:800,fontSize:14,color:isToday?"#FF6B35":"#F0F0F0"}}>{isToday?"📅 Aujourd'hui":fmtShort(selectedSessionDate)}</div>
                 {!isToday && <div style={{fontSize:11,color:"#FF6B35",marginTop:2}}>⚠️ Mode édition historique</div>}
               </div>
-              <button onClick={()=>navDaySession(1)} disabled={isToday} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:isToday?"#333":"#888",padding:"8px 14px",cursor:isToday?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
+              <button onClick={()=>navDay(1)} disabled={isToday} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:isToday?"#333":"#888",padding:"8px 14px",cursor:isToday?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
             </div>
             {(()=>{
               const progExoData = Object.values(PROGRAM).flatMap(p=>p.exercises||[]).find(e=>e.exoId===selectedExo);
@@ -832,11 +832,10 @@ function Tracker({ user, onLogout }) {
           </>
         )}
 
-        {/* ========================================================================= */}
-        {/* NUTRITION & CARDIO (FUSIONNÉS) */}
-        {/* ========================================================================= */}
+        {/* CALORIES */}
         {activeTab==="kcal" && (
           <>
+            {/* OBJECTIF + PROFIL */}
             <Card>
               <Label>Mon objectif</Label>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
@@ -864,74 +863,64 @@ function Tracker({ user, onLogout }) {
                   <Btn onClick={()=>{setProfile({...tmpProfile});setEditingProfile(false);notify("Profil mis à jour ✓");}} style={{marginTop:10}}>Sauvegarder</Btn>
                 </div>
               )}
+              <div style={{background:"linear-gradient(135deg,#1a1200,#0f0a1a)",border:"2px solid #FF6B35",borderRadius:14,padding:16}}>
+                <div style={{fontSize:11,color:"#FF6B35",textTransform:"uppercase",letterSpacing:2,marginBottom:4}}>{objData.label}</div>
+                <div style={{display:"flex",alignItems:"baseline",gap:10,marginBottom:4}}><div style={{fontSize:48,fontWeight:900,color:"#fff",letterSpacing:-2}}>{cibleKcalToday.toLocaleString()}</div><div style={{fontSize:13,color:"#888"}}>kcal/jour</div></div>
+                <div style={{fontSize:11,color:"#555",marginBottom:12}}>TDEE {tdee}{totalKcalCardioToday>0?` + Cardio ${totalKcalCardioToday}`:""} {objData.deficit>=0?"+":" "}{objData.deficit} kcal</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                  {[{label:"Protéines",g:cibleProt,kcal:cibleProt*4,color:"#44CC44",note:`${objData.protPerKg}g/kg`},{label:"Glucides",g:cibleGluc,kcal:cibleGluc*4,color:"#FFB300",note:"reste"},{label:"Lipides",g:cibleLip,kcal:cibleLip*9,color:"#FF6B35",note:`${objData.fatPerKg}g/kg`}].map(({label,g,kcal,color,note})=>(
+                    <div key={label} style={{background:"#0D0D14",borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
+                      <div style={{fontSize:9,color:"#555",marginBottom:2}}>{label}</div>
+                      <div style={{fontSize:22,fontWeight:900,color}}>{g}g</div>
+                      <div style={{fontSize:9,color:"#333"}}>{kcal} kcal • {note}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </Card>
 
-            {/* LE MASTER SELECTEUR DE DATE */}
-            <div style={{background:"#0D0D14",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <button onClick={()=>navDayNutri(-1)} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
-              <div style={{textAlign:"center"}}>
-                <div style={{fontWeight:800,fontSize:14,color:selectedNutriDate===todayKey()?"#FF6B35":"#F0F0F0"}}>{selectedNutriDate===todayKey()?"📅 Aujourd'hui":fmtShort(selectedNutriDate)}</div>
-                {selectedNutriDate!==todayKey() && <div style={{fontSize:11,color:"#FF6B35",marginTop:2}}>⚠️ Vision Historique</div>}
-              </div>
-              <button onClick={()=>navDayNutri(1)} disabled={selectedNutriDate===todayKey()} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:selectedNutriDate===todayKey()?"#333":"#888",padding:"8px 14px",cursor:selectedNutriDate===todayKey()?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
-            </div>
-
+            {/* ÉDITEUR JOURNALIER — calories + cardio + déficit du jour */}
             <Card>
-              <Label>Calories mangées le {fmtShort(selectedNutriDate)}</Label>
-              <div style={{display:"flex",gap:8,marginBottom:12}}>
-                <NumInput 
-                  value={calMangees[selectedNutriDate]||""} 
-                  onChange={v=>setCalMangees(prev=>({...prev,[selectedNutriDate]:v}))} 
-                  placeholder={`Cible : ${nutriCibleKcal} kcal`} 
-                  style={{flex:1, border:"1px solid #FF6B3555"}}
-                />
-                <button 
-                  onClick={async () => {
-                    setIsSaving(true);
-                    // On envoie le sac à dos blindé directement
-                    await saveUserData(user, userData);
-                    setIsSaving(false);
-                    notify("✅ Calories gravées dans le Cloud !");
-                  }} 
-                  style={{background:"#FF6B35", border:"none", borderRadius:10, color:"#000", fontWeight:900, padding:"0 16px", cursor:"pointer", fontSize:14}}
-                >
-                  OK 💾
-                </button>
+              <div style={{background:"#0D0D14",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <button onClick={()=>{const d=keyToDate(selectedCalDate);d.setDate(d.getDate()-1);setSelectedCalDate(dateToKey(d));}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontWeight:800,fontSize:15,color:selectedCalDate===todayKey()?"#FF6B35":"#F0F0F0"}}>{selectedCalDate===todayKey()?"📅 Aujourd'hui":fmtShort(selectedCalDate)}</div>
+                  {selectedCalDate!==todayKey() && <div style={{fontSize:11,color:"#FFB300",marginTop:2}}>✏️ Tu modifies un jour passé</div>}
+                </div>
+                <button onClick={()=>{const d=keyToDate(selectedCalDate);d.setDate(d.getDate()+1);const nk=dateToKey(d);if(nk<=todayKey())setSelectedCalDate(nk);}} disabled={selectedCalDate===todayKey()} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:selectedCalDate===todayKey()?"#333":"#888",padding:"8px 14px",cursor:selectedCalDate===todayKey()?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
               </div>
-              
-              <div style={{background:"#0D0D14", border:"1px solid #1E1E2E", borderRadius:12, padding:14, marginBottom:12}}>
-                <div style={{fontSize:11, color:"#888", marginBottom:8, textTransform:"uppercase", letterSpacing:1}}>🧮 L'équation du Mutant</div>
-                <div style={{display:"flex", justifyContent:"space-between", fontSize:12, color:"#F0F0F0", marginBottom:4}}>
-                  <span>Métabolisme + Activité</span><span>{tdee} kcal</span>
-                </div>
-                <div style={{display:"flex", justifyContent:"space-between", fontSize:12, color:"#FF6B35", marginBottom:4}}>
-                  <span>Cardio ce jour</span><span>+{nutriCardioTotal} kcal</span>
-                </div>
-                <div style={{height:1, background:"#2A2A3A", margin:"8px 0"}}/>
-                <div style={{display:"flex", justifyContent:"space-between", fontSize:14, fontWeight:800, color:"#fff", marginBottom:4}}>
-                  <span>Dépense Totale (TDEE + Cardio)</span><span>{tdee + nutriCardioTotal} kcal</span>
-                </div>
-                <div style={{display:"flex", justifyContent:"space-between", fontSize:14, fontWeight:800, color:"#44CC44", marginBottom:10}}>
-                  <span>Mangé ce jour</span><span>- {nutriMangeTotal || 0} kcal</span>
-                </div>
-                
-                {nutriMangeTotal > 0 ? (
-                  <div style={{textAlign:"center", background:nutriDeficitGenere > 0 ? "#44CC4422" : "#FF444422", border:`1px solid ${nutriDeficitGenere > 0 ? "#44CC44" : "#FF4444"}`, borderRadius:8, padding:"10px", marginTop:8}}>
-                    <div style={{fontSize:11, color:"#F0F0F0"}}>Déficit généré sur ce jour</div>
-                    <div style={{fontSize:24, fontWeight:900, color:nutriDeficitGenere > 0 ? "#44CC44" : "#FF4444"}}>
-                      {nutriDeficitGenere > 0 ? "+" : ""}{nutriDeficitGenere} kcal
+
+              <Label>🍽️ Calories mangées ce jour</Label>
+              <div style={{display:"flex",gap:8,marginBottom:14}}>
+                <NumInput value={calMangees[selectedCalDate]||""} onChange={v=>setCalMangees(prev=>({...prev,[selectedCalDate]:v}))} placeholder={`objectif : ${cibleKcal} kcal`} style={{flex:1}}/>
+                <span style={{display:"flex",alignItems:"center",color:"#555"}}>kcal</span>
+              </div>
+
+              {/* Déficit du jour détaillé */}
+              {(()=>{
+                const cal = parseInt(calMangees[selectedCalDate]) || 0;
+                const cardioJour = cardioKcalForDay(selectedCalDate);
+                const maint = tdee + cardioJour;
+                const def = maint - cal;
+                if (cal === 0) return <div style={{background:"#0D0D14",borderRadius:12,padding:14,marginBottom:14,textAlign:"center",color:"#555",fontSize:13}}>Entre tes calories pour voir le déficit du jour</div>;
+                return (
+                  <div style={{background:def>0?"#0A1A0A":"#1A0A0A",border:`1px solid ${def>0?"#44CC4433":"#FF444433"}`,borderRadius:12,padding:14,marginBottom:14}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#888",marginBottom:6}}><span>TDEE de base</span><span style={{fontWeight:700,color:"#F0F0F0"}}>{tdee} kcal</span></div>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#888",marginBottom:6}}><span>+ Cardio du jour</span><span style={{fontWeight:700,color:"#FF6B35"}}>+{cardioJour} kcal</span></div>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#888",marginBottom:6,borderTop:"1px solid #2A2A3A",paddingTop:6}}><span>= Maintenance</span><span style={{fontWeight:700,color:"#F0F0F0"}}>{maint} kcal</span></div>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#888",marginBottom:10}}><span>− Mangé</span><span style={{fontWeight:700,color:"#F0F0F0"}}>−{cal} kcal</span></div>
+                    <div style={{textAlign:"center",borderTop:"1px solid #2A2A3A",paddingTop:10}}>
+                      <div style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:2}}>Déficit du jour</div>
+                      <div style={{fontSize:34,fontWeight:900,color:def>0?"#44CC44":"#FF4444"}}>{def>0?"+":""}{def} kcal</div>
+                      <div style={{fontSize:11,color:"#555"}}>{def>0?"🔥 Tu es en déficit (perte de gras)":"⚠️ Tu es en surplus"}</div>
                     </div>
                   </div>
-                ) : (
-                  <div style={{textAlign:"center", fontSize:12, color:"#555", marginTop:10}}>
-                    Rentre tes calories pour voir le déficit réel de ce jour.
-                  </div>
-                )}
-              </div>
-            </Card>
+                );
+              })()}
 
-            <Card>
-              <Label>Ajouter du Cardio à ce jour</Label>
+              {/* CARDIO du jour sélectionné */}
+              <Label>🏃 Cardio ce jour</Label>
+              {cardioDuJour.length>0 && <div style={{marginBottom:10}}>{cardioDuJour.map((s,i)=><div key={i} style={{background:"#0D0D14",border:"1px solid #1E1E2E",borderRadius:10,padding:"10px 14px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontWeight:700,fontSize:13}}>{CARDIO_TYPES.find(c=>c.id===s.type)?.emoji} {s.nom}</div><div style={{fontSize:11,color:"#555"}}>{s.val} {s.unit} • {s.heure}</div></div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{fontSize:16,fontWeight:900,color:"#FF6B35"}}>+{s.kcal}</div><button onClick={()=>deleteCardio(i)} style={{background:"#2A0A0A",border:"1px solid #FF444433",borderRadius:8,color:"#FF4444",padding:"5px 8px",cursor:"pointer",fontSize:12}}>🗑️</button></div></div>)}</div>}
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
                 {CARDIO_TYPES.map(c=><button key={c.id} onClick={()=>setCardioType(c.id)} style={{padding:10,borderRadius:12,cursor:"pointer",background:cardioType===c.id?"#FF6B3522":"#0D0D14",border:`1px solid ${cardioType===c.id?"#FF6B35":"#1E1E2E"}`,color:cardioType===c.id?"#FF6B35":"#555",fontWeight:cardioType===c.id?800:400,fontSize:12,textAlign:"left"}}><span style={{fontSize:16}}>{c.emoji}</span> {c.name}</button>)}
               </div>
@@ -951,51 +940,44 @@ function Tracker({ user, onLogout }) {
                   {cardioVal && kcalEstimee>0 && <div style={{textAlign:"center",marginBottom:10,fontSize:28,fontWeight:900,color:"#FF6B35"}}>~{kcalEstimee} kcal</div>}
                 </>
               )}
-              <Btn onClick={logCardio} color="#FF6B35">🔥 Logger le cardio pour le {fmtShort(selectedNutriDate)}</Btn>
-              
-              {nutriCardioData.length>0 && <div style={{marginTop:12}}><Label>Cardio enregistré ce jour-là</Label>{nutriCardioData.map((s,i)=><div key={i} style={{background:"#0D0D14",border:"1px solid #1E1E2E",borderRadius:10,padding:"10px 14px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontWeight:700,fontSize:13}}>{CARDIO_TYPES.find(c=>c.id===s.type)?.emoji} {s.nom}</div><div style={{fontSize:11,color:"#555"}}>{s.val} {s.unit} • {s.heure}</div></div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{fontSize:16,fontWeight:900,color:"#FF6B35"}}>+{s.kcal}</div><button onClick={()=>setCardioLog({...cardioLog,[selectedNutriDate]:nutriCardioData.filter((_,j)=>j!==i)})} style={{background:"#2A0A0A",border:"1px solid #FF444433",borderRadius:8,color:"#FF4444",padding:"5px 8px",cursor:"pointer",fontSize:12}}>🗑️</button></div></div>)}</div>}
+              <Btn onClick={logCardio} color="#FF6B35" style={{marginBottom:14}}>🔥 Ajouter le cardio</Btn>
+
+              {/* BOUTON SAUVEGARDE FIABLE */}
+              <Btn onClick={saveNow} color="#4ECDC4" textColor="#000">💾 Enregistrer ce jour dans le cloud</Btn>
             </Card>
 
-            {/* SECTION RECAP ET BILANS */}
-            <div style={{margin:"24px 0 12px 0", fontSize:16, fontWeight:900, color:"#AA88FF", textTransform:"uppercase", letterSpacing:1}}>📈 Bilans & Statistiques</div>
-            
-            {deficitChartData.length>0 && (
-              <Card>
-                <Label>Déficit des 14 derniers jours logués</Label>
-                <div style={{background:"#0D0D14",borderRadius:10,padding:12,marginBottom:12}}><BarChart data={deficitChartData}/></div>
-                
-                <Label>Bilan Semaine (Depuis Lundi)</Label>
-                <div style={{background:"#0D0D14",borderRadius:10,padding:"10px 14px", marginBottom:16}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div style={{fontSize:12,color:"#555"}}>{recapSemaine.jours} jour(s) logué(s)</div>
-                    <div style={{fontSize:18,fontWeight:900,color:recapSemaine.deficit>0?"#44CC44":recapSemaine.deficit<-500?"#FF4444":"#FFB300"}}>{recapSemaine.deficit>0?"+":""}{recapSemaine.deficit} kcal</div>
-                  </div>
-                  <div style={{fontSize:11,color:"#444",marginTop:4}}>Perte théorique : ~{Math.abs(Math.round(recapSemaine.deficit/7700*100)/100)} kg</div>
+            {/* RÉCAP SEMAINE */}
+            <Card>
+              <Label>📊 Récap de la semaine (depuis lundi)</Label>
+              <div style={{background:"#0D0D14",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:12,color:"#555"}}>Déficit cumulé</div>
+                  <div style={{fontSize:22,fontWeight:900,color:cumulSemaine>0?"#44CC44":cumulSemaine<-500?"#FF4444":"#FFB300"}}>{cumulSemaine>0?"+":""}{Math.round(cumulSemaine)} kcal</div>
                 </div>
+                <div style={{fontSize:11,color:"#444",marginTop:4}}>Perte théorique : ~{Math.abs(Math.round(cumulSemaine/7700*100)/100)} kg</div>
+              </div>
+              {deficitChartData.length>0 && <div style={{background:"#0D0D14",borderRadius:10,padding:12}}><BarChart data={deficitChartData}/></div>}
+            </Card>
 
-                <Label>Recap depuis une date précise</Label>
-                <div style={{background:"#0D0D14", border:"1px solid #1E1E2E", borderRadius:10, padding:14}}>
-                  <input type="date" value={customRecapDate} onChange={e=>setCustomRecapDate(e.target.value)} max={todayKey()} 
-                    style={{width:"100%", background:"#1A1A2A", border:"1px solid #2A2A3A", borderRadius:8, color:"#fff", padding:"8px 12px", marginBottom:12, outline:"none"}} />
-                  
-                  <div style={{display:"flex", justifyContent:"space-between", fontSize:12, color:"#F0F0F0", marginBottom:4}}>
-                    <span>Jours logués</span><span>{recapCustomStats.jours} jours</span>
+            {/* RÉCAP DEPUIS UNE DATE */}
+            <Card>
+              <Label>🎯 Récap depuis une date</Label>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12}}>
+                <input type="date" value={recapStart} max={todayKey()} onChange={e=>setRecapStart(e.target.value)}
+                  style={{flex:1,background:"#0D0D14",border:"1px solid #2A2A3A",borderRadius:10,color:"#fff",padding:12,fontSize:15,fontWeight:700,outline:"none",boxSizing:"border-box",colorScheme:"dark"}}/>
+                <span style={{fontSize:12,color:"#555",whiteSpace:"nowrap"}}>→ aujourd'hui</span>
+              </div>
+              <div style={{background:"#0D0D14",borderRadius:10,padding:"12px 14px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div>
+                    <div style={{fontSize:12,color:"#555"}}>Déficit cumulé</div>
+                    <div style={{fontSize:10,color:"#444"}}>{nbJoursRecap} jour{nbJoursRecap>1?"s":""} enregistré{nbJoursRecap>1?"s":""}</div>
                   </div>
-                  <div style={{display:"flex", justifyContent:"space-between", fontSize:12, color:"#F0F0F0", marginBottom:4}}>
-                    <span>Dépense totale (TDEE+Cardio)</span><span>{recapCustomStats.depense} kcal</span>
-                  </div>
-                  <div style={{display:"flex", justifyContent:"space-between", fontSize:12, color:"#FFB300", marginBottom:8}}>
-                    <span>Total Mangé</span><span>- {recapCustomStats.mange} kcal</span>
-                  </div>
-                  <div style={{height:1, background:"#2A2A3A", margin:"8px 0"}}/>
-                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-                    <span style={{fontSize:12, color:"#555", fontWeight:700, textTransform:"uppercase"}}>Déficit Total</span>
-                    <span style={{fontSize:20, fontWeight:900, color:recapCustomStats.deficit>0?"#44CC44":"#FF4444"}}>{recapCustomStats.deficit>0?"+":""}{recapCustomStats.deficit} kcal</span>
-                  </div>
-                  <div style={{textAlign:"right", fontSize:11, color:"#888", marginTop:4}}>Soit ~{Math.abs(Math.round(recapCustomStats.deficit/7700*100)/100)} kg perdus</div>
+                  <div style={{fontSize:22,fontWeight:900,color:cumulRecap>0?"#44CC44":cumulRecap<-1000?"#FF4444":"#FFB300"}}>{cumulRecap>0?"+":""}{Math.round(cumulRecap)} kcal</div>
                 </div>
-              </Card>
-            )}
+                <div style={{fontSize:11,color:"#444",marginTop:6,borderTop:"1px solid #1A1A2A",paddingTop:6}}>Perte théorique totale : ~{Math.abs(Math.round(cumulRecap/7700*100)/100)} kg{nbJoursRecap>0?` • Moyenne ${Math.round(cumulRecap/nbJoursRecap)} kcal/jour`:""}</div>
+              </div>
+            </Card>
           </>
         )}
 
@@ -1114,7 +1096,7 @@ function Tracker({ user, onLogout }) {
           <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 280px)"}}>
             <div style={{background:"linear-gradient(135deg,#1a0a2a,#0a0a1a)",border:"1px solid #6644AA33",borderRadius:12,padding:"12px 16px",marginBottom:12}}>
               <div style={{fontSize:13,fontWeight:700,color:"#AA88FF"}}>🤖 Coach IA</div>
-              <div style={{fontSize:11,color:"#555",marginTop:2}}>Profil: {poids}kg • Cible: {headerCibleKcal} kcal • DC: {maxes.dc||95}kg</div>
+              <div style={{fontSize:11,color:"#555",marginTop:2}}>Profil: {poids}kg • Cible: {cibleKcalToday} kcal • DC: {maxes.dc||95}kg</div>
             </div>
             <div style={{flex:1,overflowY:"auto",marginBottom:12}}>
               {coachHistory.length===0 && <div style={{padding:"10px 0"}}>{["Comment progresser au DC ?","Mon déficit est bon cette semaine ?","J'ai mal dormi, je m'entraîne quand même ?"].map((q,i)=><button key={i} onClick={()=>setCoachInput(q)} style={{display:"block",width:"100%",background:"#111118",border:"1px solid #1E1E2E",borderRadius:10,color:"#666",padding:"10px 14px",cursor:"pointer",marginBottom:8,fontSize:12,textAlign:"left"}}>"{q}"</button>)}</div>}
