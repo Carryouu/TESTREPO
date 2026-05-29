@@ -1,188 +1,171 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// ── SUPABASE ──────────────────────────────────────────────────────────────
-const SUPABASE_URL  = process.env.REACT_APP_SUPABASE_URL;
-const SUPABASE_KEY  = process.env.REACT_APP_SUPABASE_ANON_KEY;
-const supabase      = createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const loadUserData = async (username) => {
-  const { data, error } = await supabase
-    .from("ppl_data")
-    .select("data")
-    .eq("username", username)
-    .single();
+  const { data, error } = await supabase.from("ppl_data").select("data").eq("username", username).single();
   if (error || !data) return null;
   return data.data;
 };
 
 const saveUserData = async (username, userData) => {
-  await supabase.from("ppl_data").upsert({
-    username,
-    data: userData,
-    updated_at: new Date().toISOString(),
-  });
+  await supabase.from("ppl_data").upsert({ username, data: userData, updated_at: new Date().toISOString() });
 };
 
-// ── DEBOUNCE HOOK ─────────────────────────────────────────────────────────
 function useDebounce(value, delay) {
   const [dv, setDv] = useState(value);
-  useEffect(() => {
-    const h = setTimeout(() => setDv(value), delay);
-    return () => clearTimeout(h);
-  }, [value, delay]);
+  useEffect(() => { const h = setTimeout(() => setDv(value), delay); return () => clearTimeout(h); }, [value, delay]);
   return dv;
 }
 
-// ── DATA ──────────────────────────────────────────────────────────────────
 const EXERCISES = [
-  { id:"crunch_cable",  name:"Crunch Câble",       emoji:"🔗", default1RM:30, category:"Core" },
-  { id:"crunch_dec",    name:"Crunch Décliné",      emoji:"📐", default1RM:0,  category:"Core" },
-  { id:"rdj",           name:"Relevé de Jambes",    emoji:"🦵", default1RM:0,  category:"Core" },
-  { id:"ab_wheel",      name:"Ab Wheel",            emoji:"⚙️", default1RM:0,  category:"Core" },
-  { id:"crunch_russe",  name:"Crunch Russe Lesté",  emoji:"🔄", default1RM:10, category:"Core" },
-  { id:"pallof",        name:"Pallof Press",        emoji:"🎯", default1RM:15, category:"Core" },
+  { id:"crunch_cable", name:"Crunch Câble", emoji:"🔗", default1RM:30, category:"Core" },
+  { id:"crunch_dec", name:"Crunch Décliné", emoji:"📐", default1RM:0, category:"Core" },
+  { id:"rdj", name:"Relevé de Jambes", emoji:"🦵", default1RM:0, category:"Core" },
+  { id:"ab_wheel", name:"Ab Wheel", emoji:"⚙️", default1RM:0, category:"Core" },
+  { id:"crunch_russe", name:"Crunch Russe Lesté", emoji:"🔄", default1RM:10, category:"Core" },
+  { id:"pallof", name:"Pallof Press", emoji:"🎯", default1RM:15, category:"Core" },
   { id:"press_vert", name:"Presse Verticale", emoji:"🦾", default1RM:120, category:"Legs" },
   { id:"leg_curl_al", name:"Leg Curl Allongé", emoji:"🦵", default1RM:40, category:"Legs" },
-  { id:"dc",    name:"Développé Couché",     emoji:"🏋️", default1RM:95,  category:"Push" },
-  { id:"di",    name:"Développé Incliné",    emoji:"📐", default1RM:60,  category:"Push" },
-  { id:"dm",    name:"Développé Militaire",  emoji:"🔝", default1RM:70,  category:"Push" },
-  { id:"dips",  name:"Dips Lestés",          emoji:"⬇️", default1RM:120, category:"Push" },
-  { id:"pecdeck",name:"Pec Deck",            emoji:"🦋", default1RM:60,  category:"Push" },
-  { id:"cables",name:"Câbles Croisés",       emoji:"✂️", default1RM:15,  category:"Push" },
-  { id:"lateral",name:"Écarté Latéral",      emoji:"🙆", default1RM:12,  category:"Push" },
-  { id:"poulie_lat",name:"Poulie Latérale",  emoji:"🔁", default1RM:10,  category:"Push" },
-  { id:"bf",    name:"Barre Front",          emoji:"🧠", default1RM:50,  category:"Push" },
-  { id:"tirage_uni",name:"Tirage Unilatéral",emoji:"🎯", default1RM:15,  category:"Push" },
-  { id:"trac_neutre",name:"Tractions Neutre",emoji:"🔼", default1RM:20,  category:"Pull" },
-  { id:"trac_pro",name:"Tractions Pronation",emoji:"⬆️", default1RM:15,  category:"Pull" },
-  { id:"th",    name:"Tirage Horizontal",    emoji:"↔️", default1RM:80,  category:"Pull" },
-  { id:"tbar",  name:"T-Bar Row",            emoji:"🏗️", default1RM:60,  category:"Pull" },
-  { id:"facepull",name:"Face Pull",          emoji:"😤", default1RM:20,  category:"Pull" },
-  { id:"curl_marteau",name:"Curl Marteau",   emoji:"🔨", default1RM:20,  category:"Pull" },
-  { id:"curl_classique",name:"Curl Classique",emoji:"💪",default1RM:15,  category:"Pull" },
-  { id:"curl_incline",name:"Curl Incliné",   emoji:"〰️", default1RM:12,  category:"Pull" },
-  { id:"squat", name:"Squat Barre",          emoji:"🦵", default1RM:100, category:"Legs" },
-  { id:"hack",  name:"Hack Squat",           emoji:"🏔️", default1RM:80,  category:"Legs" },
-  { id:"squat_disque",name:"Squat Disque",   emoji:"💿", default1RM:60,  category:"Legs" },
-  { id:"leg_ext",name:"Leg Extension",       emoji:"🦿", default1RM:60,  category:"Legs" },
-  { id:"leg_curl",name:"Leg Curl",           emoji:"🦶", default1RM:50,  category:"Legs" },
+  { id:"dc", name:"Développé Couché", emoji:"🏋️", default1RM:95, category:"Push" },
+  { id:"di", name:"Développé Incliné", emoji:"📐", default1RM:60, category:"Push" },
+  { id:"dm", name:"Développé Militaire", emoji:"🔝", default1RM:70, category:"Push" },
+  { id:"dips", name:"Dips Lestés", emoji:"⬇️", default1RM:120, category:"Push" },
+  { id:"pecdeck", name:"Pec Deck", emoji:"🦋", default1RM:60, category:"Push" },
+  { id:"cables", name:"Câbles Croisés", emoji:"✂️", default1RM:15, category:"Push" },
+  { id:"lateral", name:"Écarté Latéral", emoji:"🙆", default1RM:12, category:"Push" },
+  { id:"poulie_lat", name:"Poulie Latérale", emoji:"🔁", default1RM:10, category:"Push" },
+  { id:"bf", name:"Barre Front", emoji:"🧠", default1RM:50, category:"Push" },
+  { id:"tirage_uni", name:"Tirage Unilatéral", emoji:"🎯", default1RM:15, category:"Push" },
+  { id:"trac_neutre", name:"Tractions Neutre", emoji:"🔼", default1RM:20, category:"Pull" },
+  { id:"trac_pro", name:"Tractions Pronation", emoji:"⬆️", default1RM:15, category:"Pull" },
+  { id:"th", name:"Tirage Horizontal", emoji:"↔️", default1RM:80, category:"Pull" },
+  { id:"tbar", name:"T-Bar Row", emoji:"🏗️", default1RM:60, category:"Pull" },
+  { id:"facepull", name:"Face Pull", emoji:"😤", default1RM:20, category:"Pull" },
+  { id:"curl_marteau", name:"Curl Marteau", emoji:"🔨", default1RM:20, category:"Pull" },
+  { id:"curl_classique", name:"Curl Classique", emoji:"💪", default1RM:15, category:"Pull" },
+  { id:"curl_incline", name:"Curl Incliné", emoji:"〰️", default1RM:12, category:"Pull" },
+  { id:"squat", name:"Squat Barre", emoji:"🦵", default1RM:100, category:"Legs" },
+  { id:"hack", name:"Hack Squat", emoji:"🏔️", default1RM:80, category:"Legs" },
+  { id:"squat_disque", name:"Squat Disque", emoji:"💿", default1RM:60, category:"Legs" },
+  { id:"leg_ext", name:"Leg Extension", emoji:"🦿", default1RM:60, category:"Legs" },
+  { id:"leg_curl", name:"Leg Curl", emoji:"🦶", default1RM:50, category:"Legs" },
+];
+
+const ABDOS = [
+  { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
+  { exoId:"rdj", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
+  { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
 ];
 
 const PROGRAM = {
   1:{ name:"PUSH — Force", type:"Push", cardio:"20 min tapis incliné (4km/h / 15%)", exercises:[
-    { exoId:"dc",       sets:4, repsMin:4,  repsMax:6,  intensityPct:87.5, note:"Force max" },
-    { exoId:"di",       sets:3, repsMin:6,  repsMax:8,  intensityPct:77.5, note:"Accent haut pec" },
-    { exoId:"dips",     sets:3, repsMin:6,  repsMax:8,  intensityPct:null, note:"Lest max possible" },
-    { exoId:"dm",       sets:4, repsMin:5,  repsMax:6,  intensityPct:82.5, note:"Debout de préférence" },
-    { exoId:"lateral",  sets:3, repsMin:10, repsMax:12, intensityPct:null, note:"Contrôle strict" },
-    { exoId:"poulie_lat",sets:3,repsMin:12, repsMax:15, intensityPct:null, note:"Finition" },
-    { exoId:"bf",       sets:4, repsMin:8,  repsMax:10, intensityPct:null, note:"Coudes fixes" },
-    { exoId:"tirage_uni",sets:3,repsMin:12, repsMax:15, intensityPct:null, note:"Isolation triceps" },
-    { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
-    { exoId:"rdj",          sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
-    { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
+    { exoId:"dc", sets:4, repsMin:4, repsMax:6, intensityPct:87.5, note:"Force max" },
+    { exoId:"di", sets:3, repsMin:6, repsMax:8, intensityPct:77.5, note:"Accent haut pec" },
+    { exoId:"dips", sets:3, repsMin:6, repsMax:8, intensityPct:null, note:"Lest max possible" },
+    { exoId:"dm", sets:4, repsMin:5, repsMax:6, intensityPct:82.5, note:"Debout de préférence" },
+    { exoId:"lateral", sets:3, repsMin:10, repsMax:12, intensityPct:null, note:"Contrôle strict" },
+    { exoId:"poulie_lat", sets:3, repsMin:12, repsMax:15, intensityPct:null, note:"Finition" },
+    { exoId:"bf", sets:4, repsMin:8, repsMax:10, intensityPct:null, note:"Coudes fixes" },
+    { exoId:"tirage_uni", sets:3, repsMin:12, repsMax:15, intensityPct:null, note:"Isolation triceps" },
+    ...ABDOS,
   ]},
   2:{ name:"PULL — Force", type:"Pull", cardio:"20 min tapis incliné (4km/h / 15%)", exercises:[
-    { exoId:"trac_neutre",sets:4,repsMin:5,repsMax:8,  intensityPct:null, note:"Lestées si possible" },
-    { exoId:"trac_pro",  sets:3,repsMin:6, repsMax:8,  intensityPct:null, note:"Coudes vers le bas" },
-    { exoId:"th",        sets:4,repsMin:8, repsMax:10, intensityPct:null, note:"Rétraction scapulaire" },
-    { exoId:"curl_marteau",sets:3,repsMin:10,repsMax:12,intensityPct:null,note:"Brachial + biceps" },
-    { exoId:"curl_classique",sets:3,repsMin:10,repsMax:12,intensityPct:null,note:"Supination en haut" },
-    { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
-    { exoId:"rdj",          sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
-    { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
+    { exoId:"trac_neutre", sets:4, repsMin:5, repsMax:8, intensityPct:null, note:"Lestées si possible" },
+    { exoId:"trac_pro", sets:3, repsMin:6, repsMax:8, intensityPct:null, note:"Coudes vers le bas" },
+    { exoId:"th", sets:4, repsMin:8, repsMax:10, intensityPct:null, note:"Rétraction scapulaire" },
+    { exoId:"curl_marteau", sets:3, repsMin:10, repsMax:12, intensityPct:null, note:"Brachial + biceps" },
+    { exoId:"curl_classique", sets:3, repsMin:10, repsMax:12, intensityPct:null, note:"Supination en haut" },
+    ...ABDOS,
   ]},
   3:{ name:"LEGS — Lourd", type:"Legs", cardio:null, exercises:[
-    { exoId:"squat",    sets:5,repsMin:4, repsMax:6,  intensityPct:87.5, note:"Priorité absolue" },
-    { exoId:"hack",     sets:4,repsMin:6, repsMax:8,  intensityPct:null, note:"Focus quadri" },
-    { exoId:"squat_disque",sets:3,repsMin:8,repsMax:10,intensityPct:null,note:"Quadriceps ext." },
-    { exoId:"leg_ext",  sets:3,repsMin:12,repsMax:15, intensityPct:null, note:"Finition quadri" },
-    { exoId:"leg_curl", sets:4,repsMin:10,repsMax:12, intensityPct:null, note:"Ischio, amplitude max" },
-    { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
-    { exoId:"rdj",          sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
-    { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
+    { exoId:"squat", sets:5, repsMin:4, repsMax:6, intensityPct:87.5, note:"Priorité absolue" },
+    { exoId:"hack", sets:4, repsMin:6, repsMax:8, intensityPct:null, note:"Focus quadri" },
+    { exoId:"press_vert", sets:4, repsMin:8, repsMax:12, intensityPct:null, note:"Amplitude complète" },
+    { exoId:"leg_ext", sets:3, repsMin:12, repsMax:15, intensityPct:null, note:"Finition quadri" },
+    { exoId:"leg_curl", sets:4, repsMin:10, repsMax:12, intensityPct:null, note:"Ischio, amplitude max" },
+    { exoId:"leg_curl_al", sets:3, repsMin:10, repsMax:12, intensityPct:null, note:"Ischio en allongé" },
+    ...ABDOS,
   ]},
   4:{ name:"PUSH — Variante", type:"Push", cardio:"20 min tapis incliné (4km/h / 15%)", exercises:[
-    { exoId:"dc",       sets:4,repsMin:4, repsMax:6,  intensityPct:87.5, note:"Force max" },
-    { exoId:"di",       sets:3,repsMin:6, repsMax:8,  intensityPct:77.5, note:"Haltères si fatigue" },
-    { exoId:"pecdeck",  sets:3,repsMin:6, repsMax:8,  intensityPct:null, note:"Alternative dips" },
-    { exoId:"dm",       sets:4,repsMin:5, repsMax:6,  intensityPct:82.5, note:"Debout" },
-    { exoId:"lateral",  sets:4,repsMin:10,repsMax:12, intensityPct:null, note:"+1 série vs lundi" },
-    { exoId:"poulie_lat",sets:3,repsMin:12,repsMax:15,intensityPct:null, note:"Finition" },
-    { exoId:"bf",       sets:4,repsMin:8, repsMax:10, intensityPct:null, note:"Coudes fixes" },
-    { exoId:"cables",   sets:3,repsMin:12,repsMax:15, intensityPct:null, note:"Finition pec" },
-    { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
-    { exoId:"rdj",          sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
-    { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
+    { exoId:"dc", sets:4, repsMin:4, repsMax:6, intensityPct:87.5, note:"Force max" },
+    { exoId:"di", sets:3, repsMin:6, repsMax:8, intensityPct:77.5, note:"Haltères si fatigue" },
+    { exoId:"pecdeck", sets:3, repsMin:6, repsMax:8, intensityPct:null, note:"Alternative dips" },
+    { exoId:"dm", sets:4, repsMin:5, repsMax:6, intensityPct:82.5, note:"Debout" },
+    { exoId:"lateral", sets:4, repsMin:10, repsMax:12, intensityPct:null, note:"+1 série vs lundi" },
+    { exoId:"poulie_lat", sets:3, repsMin:12, repsMax:15, intensityPct:null, note:"Finition" },
+    { exoId:"bf", sets:4, repsMin:8, repsMax:10, intensityPct:null, note:"Coudes fixes" },
+    { exoId:"cables", sets:3, repsMin:12, repsMax:15, intensityPct:null, note:"Finition pec" },
+    ...ABDOS,
   ]},
   5:{ name:"PULL — Variante", type:"Pull", cardio:"20 min tapis incliné (4km/h / 15%)", exercises:[
-    { exoId:"trac_neutre",sets:4,repsMin:5,repsMax:8, intensityPct:null, note:"Lestées si possible" },
-    { exoId:"trac_pro",  sets:3,repsMin:6, repsMax:8, intensityPct:null, note:"Amplitude complète" },
-    { exoId:"tbar",     sets:4,repsMin:8, repsMax:10, intensityPct:null, note:"Alternative tirage" },
-    { exoId:"facepull", sets:3,repsMin:12,repsMax:15, intensityPct:null, note:"Santé épaule" },
-    { exoId:"curl_marteau",sets:3,repsMin:10,repsMax:12,intensityPct:null,note:"Brachial + biceps" },
-    { exoId:"curl_incline",sets:3,repsMin:10,repsMax:12,intensityPct:null,note:"Alternative curl" },
-    { exoId:"crunch_cable", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Haut ventre" },
-    { exoId:"rdj",          sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Bas ventre" },
-    { exoId:"crunch_russe", sets:3, repsMin:15, repsMax:20, intensityPct:null, note:"Obliques" },
+    { exoId:"trac_neutre", sets:4, repsMin:5, repsMax:8, intensityPct:null, note:"Lestées si possible" },
+    { exoId:"trac_pro", sets:3, repsMin:6, repsMax:8, intensityPct:null, note:"Amplitude complète" },
+    { exoId:"tbar", sets:4, repsMin:8, repsMax:10, intensityPct:null, note:"Alternative tirage" },
+    { exoId:"facepull", sets:3, repsMin:12, repsMax:15, intensityPct:null, note:"Santé épaule" },
+    { exoId:"curl_marteau", sets:3, repsMin:10, repsMax:12, intensityPct:null, note:"Brachial + biceps" },
+    { exoId:"curl_incline", sets:3, repsMin:10, repsMax:12, intensityPct:null, note:"Alternative curl" },
+    ...ABDOS,
   ]},
   6:{ name:"REPOS ACTIF", type:null, cardio:"40 min marche rapide", exercises:[] },
   0:{ name:"REPOS TOTAL", type:null, cardio:null, exercises:[] },
 };
 
 const ZONES = [
-  { label:"Force Max",     pct:90, color:"#FF4444", reps:"3-5 reps" },
-  { label:"Force",         pct:85, color:"#FF7700", reps:"4-6 reps" },
+  { label:"Force Max", pct:90, color:"#FF4444", reps:"3-5 reps" },
+  { label:"Force", pct:85, color:"#FF7700", reps:"4-6 reps" },
   { label:"Hypertrophie+", pct:80, color:"#FFB300", reps:"6-8 reps" },
-  { label:"Hypertrophie",  pct:75, color:"#44CC44", reps:"8-10 reps" },
-  { label:"Volume",        pct:70, color:"#44AAFF", reps:"10-12 reps" },
-  { label:"Endurance",     pct:60, color:"#AA88FF", reps:"12-15 reps" },
+  { label:"Hypertrophie", pct:75, color:"#44CC44", reps:"8-10 reps" },
+  { label:"Volume", pct:70, color:"#44AAFF", reps:"10-12 reps" },
+  { label:"Endurance", pct:60, color:"#AA88FF", reps:"12-15 reps" },
 ];
 
 const ACTIVITY_LEVELS = [
-  { id:"sed",     label:"Sédentaire",       factor:1.2,   example:"Bureau, 0 sport" },
-  { id:"light",   label:"Légèrement actif", factor:1.375, example:"Bureau + 1-2 séances/sem" },
-  { id:"mod",     label:"Modérément actif", factor:1.55,  example:"Bureau + PPL sans cardio" },
-  { id:"active",  label:"Très actif",       factor:1.725, example:"Bureau + PPL + cardio ✅" },
-  { id:"athlete", label:"Athlète",          factor:1.9,   example:"2x/jour ou boulot physique" },
+  { id:"sed", label:"Sédentaire", factor:1.2, example:"Bureau, 0 sport" },
+  { id:"light", label:"Légèrement actif", factor:1.375, example:"Bureau + 1-2 séances/sem" },
+  { id:"mod", label:"Modérément actif", factor:1.55, example:"Bureau + PPL sans cardio" },
+  { id:"active", label:"Très actif", factor:1.725, example:"Bureau + PPL + cardio ✅" },
+  { id:"athlete", label:"Athlète", factor:1.9, example:"2x/jour ou boulot physique" },
 ];
 
 const OBJECTIFS = [
-  { id:"seche_douce",    label:"🔥 Sèche douce",    desc:"−0.25 kg/sem", deficit:-250,  protPerKg:2.2, fatPerKg:1.0 },
-  { id:"seche_standard", label:"🔥 Sèche standard", desc:"−0.5 kg/sem",  deficit:-500,  protPerKg:2.4, fatPerKg:0.9 },
-  { id:"seche_rapide",   label:"🔥 Sèche rapide",   desc:"−0.75 kg/sem", deficit:-750,  protPerKg:2.5, fatPerKg:0.9 },
-  { id:"seche_agressive",label:"🔥 Sèche agressive",desc:"−1 kg/sem",    deficit:-1000, protPerKg:2.6, fatPerKg:0.8 },
-  { id:"recompo",        label:"⚖️ Recompo",        desc:"Gras↓ Muscle↑",deficit:-150,  protPerKg:2.2, fatPerKg:1.0 },
-  { id:"maintenance",    label:"🎯 Maintenance",    desc:"Maintenir",    deficit:0,     protPerKg:1.8, fatPerKg:1.0 },
-  { id:"pdm_lean",       label:"📈 PDM Lean",       desc:"+0.25 kg/sem", deficit:250,   protPerKg:2.0, fatPerKg:1.0 },
-  { id:"pdm_standard",   label:"📈 PDM Standard",   desc:"+0.5 kg/sem",  deficit:500,   protPerKg:1.8, fatPerKg:1.0 },
-  { id:"pdm_rapide",     label:"💪 PDM Rapide",     desc:"+1 kg/sem",    deficit:1000,  protPerKg:1.8, fatPerKg:1.1 },
+  { id:"seche_douce", label:"🔥 Sèche douce", desc:"−0.25 kg/sem", deficit:-250, protPerKg:2.2, fatPerKg:1.0 },
+  { id:"seche_standard", label:"🔥 Sèche standard", desc:"−0.5 kg/sem", deficit:-500, protPerKg:2.4, fatPerKg:0.9 },
+  { id:"seche_rapide", label:"🔥 Sèche rapide", desc:"−0.75 kg/sem", deficit:-750, protPerKg:2.5, fatPerKg:0.9 },
+  { id:"seche_agressive", label:"🔥 Sèche agressive", desc:"−1 kg/sem", deficit:-1000, protPerKg:2.6, fatPerKg:0.8 },
+  { id:"recompo", label:"⚖️ Recompo", desc:"Gras↓ Muscle↑", deficit:-150, protPerKg:2.2, fatPerKg:1.0 },
+  { id:"maintenance", label:"🎯 Maintenance", desc:"Maintenir", deficit:0, protPerKg:1.8, fatPerKg:1.0 },
+  { id:"pdm_lean", label:"📈 PDM Lean", desc:"+0.25 kg/sem", deficit:250, protPerKg:2.0, fatPerKg:1.0 },
+  { id:"pdm_standard", label:"📈 PDM Standard", desc:"+0.5 kg/sem", deficit:500, protPerKg:1.8, fatPerKg:1.0 },
+  { id:"pdm_rapide", label:"💪 PDM Rapide", desc:"+1 kg/sem", deficit:1000, protPerKg:1.8, fatPerKg:1.1 },
 ];
 
 const CARDIO_TYPES = [
-  { id:"pas",    name:"Pas Quotidiens", emoji:"👟", isSteps:true },
-  { id:"tapis",  name:"Tapis Incliné",  emoji:"📐", isIncline:true },
-  { id:"marche", name:"Marche",         emoji:"🚶", isDistance:true, kcalPerKm:1.0 },
-  { id:"course", name:"Course",         emoji:"🏃", isDistance:true, kcalPerKm:1.1 },
-  { id:"velo",   name:"Vélo cardio",    emoji:"🚴", kcalPerMin:{ low:6, med:9, high:12 } },
-  { id:"rameur", name:"Rameur",         emoji:"🚣", kcalPerMin:{ low:7, med:10, high:13 } },
-  { id:"hiit",   name:"HIIT",           emoji:"⚡", kcalPerMin:{ low:10, med:14, high:18 } },
+  { id:"pas", name:"Pas Quotidiens", emoji:"👟", isSteps:true },
+  { id:"tapis", name:"Tapis Incliné", emoji:"📐", isIncline:true },
+  { id:"marche", name:"Marche", emoji:"🚶", isDistance:true, kcalPerKm:1.0 },
+  { id:"course", name:"Course", emoji:"🏃", isDistance:true, kcalPerKm:1.1 },
+  { id:"velo", name:"Vélo cardio", emoji:"🚴", kcalPerMin:{ low:6, med:9, high:12 } },
+  { id:"rameur", name:"Rameur", emoji:"🚣", kcalPerMin:{ low:7, med:10, high:13 } },
+  { id:"hiit", name:"HIIT", emoji:"⚡", kcalPerMin:{ low:10, med:14, high:18 } },
 ];
 
 const REST_OPTIONS = [
-  { label:"45s",s:45 },{ label:"1 min",s:60 },{ label:"90s",s:90 },
-  { label:"2 min",s:120 },{ label:"3 min",s:180 },{ label:"5 min",s:300 },
+  { label:"45s", s:45 }, { label:"1 min", s:60 }, { label:"90s", s:90 },
+  { label:"2 min", s:120 }, { label:"3 min", s:180 }, { label:"5 min", s:300 },
 ];
 
 const TABS = [
   { id:"programme", label:"🗓️ Séance" },
-  { id:"log",       label:"📝 Logger" },
-  { id:"kcal",      label:"🍽️ Calories" },
-  { id:"poids",     label:"⚖️ Poids" },
-  { id:"stats",     label:"📈 Stats" },
-  { id:"calc",      label:"📊 Charges" },
-  { id:"coach",     label:"🤖 Coach" },
+  { id:"log", label:"📝 Logger" },
+  { id:"kcal", label:"🍽️ Calories" },
+  { id:"poids", label:"⚖️ Poids" },
+  { id:"stats", label:"📈 Stats" },
+  { id:"calc", label:"📊 Charges" },
+  { id:"coach", label:"🤖 Coach" },
 ];
 
 const round = n => Math.round(n / 2.5) * 2.5;
@@ -193,7 +176,6 @@ const keyToDate = k => new Date(k+"T12:00:00");
 const fmtShort = k => keyToDate(k).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"});
 const catColor = { Push:"#FF6B35", Pull:"#4ECDC4", Legs:"#FFE66D", Core:"#AA88FF" };
 
-// ── UI PRIMITIVES ─────────────────────────────────────────────────────────
 const Card = ({ children, style={} }) => (
   <div style={{ background:"#111118", border:"1px solid #1E1E2E", borderRadius:14, padding:16, marginBottom:10, ...style }}>{children}</div>
 );
@@ -202,16 +184,13 @@ const Label = ({ children }) => (
 );
 const Btn = ({ onClick, children, color="#FF6B35", textColor="#000", disabled=false, style={} }) => (
   <button onClick={onClick} disabled={disabled}
-    style={{ background:disabled?"#1A1A2A":color, border:"none", borderRadius:12,
-      color:disabled?"#444":textColor, padding:14, fontWeight:900, fontSize:15,
-      cursor:disabled?"not-allowed":"pointer", width:"100%", ...style }}>
+    style={{ background:disabled?"#1A1A2A":color, border:"none", borderRadius:12, color:disabled?"#444":textColor, padding:14, fontWeight:900, fontSize:15, cursor:disabled?"not-allowed":"pointer", width:"100%", ...style }}>
     {children}
   </button>
 );
 const NumInput = ({ value, onChange, placeholder, style={} }) => (
   <input type="text" inputMode="decimal" value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-    style={{ width:"100%", background:"#0D0D14", border:"1px solid #2A2A3A", borderRadius:10,
-      color:"#fff", padding:12, fontSize:16, fontWeight:700, outline:"none", boxSizing:"border-box", ...style }} />
+    style={{ width:"100%", background:"#0D0D14", border:"1px solid #2A2A3A", borderRadius:10, color:"#fff", padding:12, fontSize:16, fontWeight:700, outline:"none", boxSizing:"border-box", ...style }} />
 );
 
 const LineChart = ({ data, color="#4ECDC4", unit="" }) => {
@@ -248,7 +227,7 @@ const BarChart = ({ data }) => {
       <line x1={P} y1={mid} x2={W-P} y2={mid} stroke="#2A2A3A" strokeWidth="1"/>
       {data.map((d,i)=>{
         const x=P+(i/data.length)*iW+(iW/data.length-bw)/2;
-        const ratio=Math.min(1,Math.abs(d.deficit)/maxAbs),h=ratio*(mid-P-4),isOk=d.deficit<=0;
+        const ratio=Math.min(1,Math.abs(d.deficit)/maxAbs),h=ratio*(mid-P-4),isOk=d.deficit>=0;
         const color=isOk?"#44CC44":"#FF4444";
         return(<g key={i}>
           <rect x={x} y={isOk?mid-h:mid} width={bw} height={h} rx="2" fill={color} opacity="0.8"/>
@@ -265,10 +244,10 @@ const BarChart = ({ data }) => {
 const ExoSelector = ({ filterCat, setFilterCat, selectedExo, setSelectedExo }) => (
   <>
     <div style={{display:"flex",gap:6,marginBottom:10}}>
-      {["Push","Pull","Legs","Core"].map(cat=>
+      {["Push","Pull","Legs","Core"].map(cat=>(
         <button key={cat} onClick={()=>{setFilterCat(cat);setSelectedExo(EXERCISES.find(e=>e.category===cat)?.id);}}
           style={{flex:1,padding:9,borderRadius:10,border:"none",cursor:"pointer",background:filterCat===cat?catColor[cat]:"#111118",color:filterCat===cat?"#000":"#555",fontWeight:filterCat===cat?800:400,fontSize:14}}>{cat}</button>
-      )}
+      ))}
     </div>
     <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
       {EXERCISES.filter(e=>e.category===filterCat).map(e=>(
@@ -281,25 +260,18 @@ const ExoSelector = ({ filterCat, setFilterCat, selectedExo, setSelectedExo }) =
   </>
 );
 
-// ══════════════════════════════════════════════════════════════════════════
-// LOGIN SCREEN
-// ══════════════════════════════════════════════════════════════════════════
 function LoginScreen({ onLogin }) {
-  const [name,    setName]    = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState("");
 
   const handleLogin = async () => {
     const trimmed = name.trim().toLowerCase();
     if (!trimmed) return;
-    setLoading(true); setError("");
+    setLoading(true);
     try {
-      // Vérifie si l'user existe dans Supabase
       const { data } = await supabase.from("ppl_data").select("username").eq("username", trimmed).single();
       onLogin(trimmed, !!data);
-    } catch {
-      onLogin(trimmed, false);
-    }
+    } catch { onLogin(trimmed, false); }
     setLoading(false);
   };
 
@@ -314,66 +286,49 @@ function LoginScreen({ onLogin }) {
         </div>
         <div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:16,padding:24}}>
           <Label>Ton prénom</Label>
-          <input type="text" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()}
-            placeholder="ex: Mehdi" autoFocus
+          <input type="text" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()} placeholder="ex: Mehdi" autoFocus
             style={{width:"100%",background:"#0D0D14",border:"1px solid #2A2A3A",borderRadius:10,color:"#fff",padding:14,fontSize:20,fontWeight:700,outline:"none",boxSizing:"border-box",marginBottom:16}}/>
-          {error && <div style={{color:"#FF4444",fontSize:12,marginBottom:12}}>{error}</div>}
-          <Btn onClick={handleLogin} disabled={!name.trim()||loading}>
-            {loading ? "Connexion..." : "Accéder à mon profil →"}
-          </Btn>
+          <Btn onClick={handleLogin} disabled={!name.trim()||loading}>{loading?"Connexion...":"Accéder à mon profil →"}</Btn>
         </div>
         <div style={{marginTop:14,fontSize:11,color:"#444",textAlign:"center",lineHeight:1.8}}>
-          Nouveau ? Tape ton prénom et crée ton profil.<br/>
-          Déjà inscrit ? Tape le même prénom pour retrouver tes données.
+          Nouveau ? Tape ton prénom et crée ton profil.<br/>Déjà inscrit ? Tape le même prénom pour retrouver tes données.
         </div>
       </div>
     </div>
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-// MAIN APP
-// ══════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
-
-  const handleLogin = (user) => setCurrentUser(user);
-  const handleLogout = () => setCurrentUser(null);
-
-  if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
-  return <Tracker user={currentUser} onLogout={handleLogout} />;
+  if (!currentUser) return <LoginScreen onLogin={(user) => setCurrentUser(user)} />;
+  return <Tracker user={currentUser} onLogout={() => setCurrentUser(null)} />;
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-// TRACKER
-// ══════════════════════════════════════════════════════════════════════════
 function Tracker({ user, onLogout }) {
   const defaultMaxes = Object.fromEntries(EXERCISES.map(e=>[e.id,e.default1RM]));
-  const [isLoaded,   setIsLoaded]   = useState(false);
-  const [isSaving,   setIsSaving]   = useState(false);
-  const [maxes,      setMaxes]      = useState(defaultMaxes);
-  const [history,    setHistory]    = useState({});
-  const [sessions,   setSessions]   = useState({});
-  const [profile,    setProfile]    = useState({age:22,taille:186,poids:80,sexe:"homme",activite:"active"});
-  const [objectif,   setObjectif]   = useState("recompo");
-  const [poidsLog,   setPoidsLog]   = useState({});
-  const [cardioLog,  setCardioLog]  = useState({});
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [maxes, setMaxes] = useState(defaultMaxes);
+  const [history, setHistory] = useState({});
+  const [sessions, setSessions] = useState({});
+  const [profile, setProfile] = useState({age:22,taille:186,poids:80,sexe:"homme",activite:"active"});
+  const [objectif, setObjectif] = useState("recompo");
+  const [poidsLog, setPoidsLog] = useState({});
+  const [cardioLog, setCardioLog] = useState({});
   const [calMangees, setCalMangees] = useState({});
   const [deficitLog, setDeficitLog] = useState({});
-  const [selectedCardioDate, setSelectedCardioDate] = useState(todayKey());
-  const [selectedCalDate, setSelectedCalDate] = useState(todayKey());
-  // ── LOAD depuis Supabase ───────────────────────────────────────────────
+
   useEffect(() => {
     const init = async () => {
       const data = await loadUserData(user);
       if (data) {
-        if (data.maxes)      setMaxes(data.maxes);
-        if (data.history)    setHistory(data.history);
-        if (data.sessions)   setSessions(data.sessions);
-        if (data.profile)    setProfile(data.profile);
-        if (data.objectif)   setObjectif(data.objectif);
-        if (data.poidsLog)   setPoidsLog(data.poidsLog);
-        if (data.cardioLog)  setCardioLog(data.cardioLog);
+        if (data.maxes) setMaxes(data.maxes);
+        if (data.history) setHistory(data.history);
+        if (data.sessions) setSessions(data.sessions);
+        if (data.profile) setProfile(data.profile);
+        if (data.objectif) setObjectif(data.objectif);
+        if (data.poidsLog) setPoidsLog(data.poidsLog);
+        if (data.cardioLog) setCardioLog(data.cardioLog);
         if (data.calMangees) setCalMangees(data.calMangees);
         if (data.deficitLog) setDeficitLog(data.deficitLog);
       }
@@ -382,7 +337,6 @@ function Tracker({ user, onLogout }) {
     init();
   }, [user]);
 
-  // ── AUTO-SAVE debounced ────────────────────────────────────────────────
   const userData = { maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees, deficitLog };
   const debouncedData = useDebounce(userData, 2000);
 
@@ -392,198 +346,223 @@ function Tracker({ user, onLogout }) {
     saveUserData(user, debouncedData).finally(() => setIsSaving(false));
   }, [debouncedData]);
 
-  // ── STATE UI ───────────────────────────────────────────────────────────
-  const [activeTab,          setActiveTab]          = useState("programme");
-  const [selectedExo,        setSelectedExo]        = useState("dc");
-  const [filterCat,          setFilterCat]          = useState("Push");
-  const [selectedSessionDate,setSelectedSessionDate]= useState(todayKey());
-  const [logWeight,          setLogWeight]          = useState("");
-  const [logReps,            setLogReps]            = useState("");
-  const [editingMax,         setEditingMax]         = useState(false);
-  const [tempMax,            setTempMax]            = useState("");
-  const [timerDuration,      setTimerDuration]      = useState(120);
-  const [timerSeconds,       setTimerSeconds]       = useState(0);
-  const [timerActive,        setTimerActive]        = useState(false);
-  const [timerEndTime,       setTimerEndTime]       = useState(null);
-  const [notification,       setNotification]       = useState(null);
-  const [cardioType,         setCardioType]         = useState("pas");
-  const [cardioVal,          setCardioVal]          = useState("");
-  const [cardioIntensite,    setCardioIntensite]    = useState("med");
-  const [tapisVitesse,       setTapisVitesse]       = useState("");
-  const [tapisPente,         setTapisPente]         = useState("");
-  const [tapisDuree,         setTapisDuree]         = useState("");
-  const [inputPoids,         setInputPoids]         = useState("");
-  const [statsExo,           setStatsExo]           = useState("dc");
-  const [statsFilter,        setStatsFilter]        = useState("Push");
-  const [statsMode,          setStatsMode]          = useState("1rm");
-  const [coachInput,         setCoachInput]         = useState("");
-  const [coachHistory,       setCoachHistory]       = useState([]);
-  const [coachLoading,       setCoachLoading]       = useState(false);
-  const [editingProfile,     setEditingProfile]     = useState(false);
-  const [tmpProfile,         setTmpProfile]         = useState({});
+  const [activeTab, setActiveTab] = useState("programme");
+  const [selectedExo, setSelectedExo] = useState("dc");
+  const [filterCat, setFilterCat] = useState("Push");
+  const [selectedSessionDate, setSelectedSessionDate] = useState(todayKey());
+  const [selectedCardioDate, setSelectedCardioDate] = useState(todayKey());
+  const [selectedCalDate, setSelectedCalDate] = useState(todayKey());
+  const [logWeight, setLogWeight] = useState("");
+  const [logReps, setLogReps] = useState("");
+  const [editingMax, setEditingMax] = useState(false);
+  const [tempMax, setTempMax] = useState("");
+  const [timerDuration, setTimerDuration] = useState(120);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerActive, setTimerActive] = useState(false);
+  const [timerEndTime, setTimerEndTime] = useState(null);
+  const [notification, setNotification] = useState(null);
+  const [cardioType, setCardioType] = useState("pas");
+  const [cardioVal, setCardioVal] = useState("");
+  const [cardioIntensite, setCardioIntensite] = useState("med");
+  const [tapisVitesse, setTapisVitesse] = useState("");
+  const [tapisPente, setTapisPente] = useState("");
+  const [tapisDuree, setTapisDuree] = useState("");
+  const [inputPoids, setInputPoids] = useState("");
+  const [statsExo, setStatsExo] = useState("dc");
+  const [statsFilter, setStatsFilter] = useState("Push");
+  const [statsMode, setStatsMode] = useState("1rm");
+  const [coachInput, setCoachInput] = useState("");
+  const [coachHistory, setCoachHistory] = useState([]);
+  const [coachLoading, setCoachLoading] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [tmpProfile, setTmpProfile] = useState({});
   const coachEndRef = useRef(null);
 
-  useEffect(()=>{ coachEndRef.current?.scrollIntoView({behavior:"smooth"}); },[coachHistory]);
+  useEffect(() => { coachEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [coachHistory]);
 
-  // Timer
-  useEffect(()=>{
-    if(!timerEndTime){setTimerActive(false);setTimerSeconds(0);return;}
-    const update=()=>{
-      const rem=Math.round((timerEndTime-Date.now())/1000);
-      if(rem<=0){setTimerActive(false);setTimerSeconds(0);setTimerEndTime(null);}
-      else{setTimerActive(true);setTimerSeconds(rem);}
+  useEffect(() => {
+    if (!timerEndTime) { setTimerActive(false); setTimerSeconds(0); return; }
+    const update = () => {
+      const rem = Math.round((timerEndTime - Date.now()) / 1000);
+      if (rem <= 0) { setTimerActive(false); setTimerSeconds(0); setTimerEndTime(null); }
+      else { setTimerActive(true); setTimerSeconds(rem); }
     };
-    update();const iv=setInterval(update,1000);return()=>clearInterval(iv);
-  },[timerEndTime]);
-  const startTimer=dur=>setTimerEndTime(Date.now()+dur*1000);
-  const stopTimer=()=>{setTimerEndTime(null);setTimerActive(false);setTimerSeconds(0);};
+    update(); const iv = setInterval(update, 1000); return () => clearInterval(iv);
+  }, [timerEndTime]);
 
-  // Calculs nutrition
-  const poids=parseFloat(profile.poids)||80;
-  const mbr=profile.sexe==="homme"?Math.round(10*poids+6.25*(parseFloat(profile.taille)||186)-5*(parseFloat(profile.age)||22)+5):Math.round(10*poids+6.25*(parseFloat(profile.taille)||186)-5*(parseFloat(profile.age)||22)-161);
-  const actFactor=ACTIVITY_LEVELS.find(a=>a.id===profile.activite)?.factor||1.725;
-  const tdee=Math.round(mbr*actFactor);
-  const objData=OBJECTIFS.find(o=>o.id===objectif)||OBJECTIFS[4];
+  const startTimer = dur => setTimerEndTime(Date.now() + dur * 1000);
+  const stopTimer = () => { setTimerEndTime(null); setTimerActive(false); setTimerSeconds(0); };
+  const notify = (msg, type="success") => { setNotification({msg,type}); setTimeout(() => setNotification(null), 3000); };
+
+  const poids = parseFloat(profile.poids) || 80;
+  const mbr = profile.sexe === "homme"
+    ? Math.round(10*poids + 6.25*(parseFloat(profile.taille)||186) - 5*(parseFloat(profile.age)||22) + 5)
+    : Math.round(10*poids + 6.25*(parseFloat(profile.taille)||186) - 5*(parseFloat(profile.age)||22) - 161);
+  const actFactor = ACTIVITY_LEVELS.find(a=>a.id===profile.activite)?.factor || 1.725;
+  const tdee = Math.round(mbr * actFactor);
+  const objData = OBJECTIFS.find(o=>o.id===objectif) || OBJECTIFS[4];
   const todayCardio = cardioLog[selectedCardioDate] || [];
   const todayCardioForCalc = cardioLog[todayKey()] || [];
-  const totalKcalCardio = todayCardioForCalc.reduce((s,e)=>s+e.kcal,0);
-  const cibleKcal=tdee+objData.deficit+totalKcalCardio;
-  const cibleProt=Math.round(poids*objData.protPerKg);
-  const cibleLip=Math.round(poids*objData.fatPerKg);
-  const cibleGluc=Math.max(0,Math.round((cibleKcal-cibleProt*4-cibleLip*9)/4));
-  const calAujourdhui=parseInt(calMangees[todayKey()]||0);
-  const ecart=calAujourdhui>0?cibleKcal-calAujourdhui:null;
-  const deficitReel=calAujourdhui>0?(tdee+totalKcalCardio)-calAujourdhui:null;
+  const totalKcalCardio = todayCardioForCalc.reduce((s,e)=>s+e.kcal, 0);
+  const cibleKcal = tdee + objData.deficit + totalKcalCardio;
+  const cibleProt = Math.round(poids * objData.protPerKg);
+  const cibleLip = Math.round(poids * objData.fatPerKg);
+  const cibleGluc = Math.max(0, Math.round((cibleKcal - cibleProt*4 - cibleLip*9) / 4));
+  const calAujourdhui = parseInt(calMangees[todayKey()] || 0);
+  const deficitReel = calAujourdhui > 0 ? (tdee + totalKcalCardio) - calAujourdhui : null;
 
-  useEffect(()=>{
-    if(calAujourdhui>0) setDeficitLog(prev=>({...prev,[todayKey()]:deficitReel}));
-  },[calMangees,cibleKcal]);
+  const cumulDeficitSemaine = (() => {
+    const now = new Date(), dow = now.getDay()===0?7:now.getDay(), lundi = new Date(now);
+    lundi.setDate(now.getDate() - dow + 1);
+    const lk = dateToKey(lundi);
+    return Object.entries(calMangees)
+      .filter(([k]) => k >= lk && k <= todayKey())
+      .reduce((s, [date, cal]) => {
+        const calNum = parseInt(cal) || 0;
+        if (calNum === 0) return s;
+        const cardioJour = (cardioLog[date] || []).reduce((c,e)=>c+e.kcal, 0);
+        return s + (tdee + cardioJour) - calNum;
+      }, 0);
+  })();
 
- const cumulDeficitSemaine=(()=>{
-  const now=new Date(),dow=now.getDay()===0?7:now.getDay(),lundi=new Date(now);
-  lundi.setDate(now.getDate()-dow+1);
-  const lk=dateToKey(lundi);
-  return Object.entries(calMangees)
-    .filter(([k])=>k>=lk&&k<=todayKey())
-    .reduce((s,[date,cal])=>{
-      const calNum=parseInt(cal)||0;
-      if(calNum===0) return s;
-      const cardioJour=(cardioLog[date]||[]).reduce((c,e)=>c+e.kcal,0);
-      return s+(tdee+cardioJour)-calNum;
-    },0);
-})();
+  const deficitChartData = (() => {
+    const entries = Object.entries(calMangees).filter(([,cal])=>parseInt(cal)>0).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14);
+    return entries.map(([date, cal]) => {
+      const cardioJour = (cardioLog[date] || []).reduce((c,e)=>c+e.kcal, 0);
+      return { deficit: Math.round((tdee + cardioJour) - parseInt(cal)), label: new Date(date).toLocaleDateString("fr-FR",{day:"numeric",month:"short"}) };
+    });
+  })();
 
-  const notify=(msg,type="success")=>{setNotification({msg,type});setTimeout(()=>setNotification(null),3000);};
+  const todayDow = new Date().getDay();
+  const todayProgram = PROGRAM[todayDow] || PROGRAM[0];
+  const isToday = selectedSessionDate === todayKey();
+  const currentSets = sessions[selectedExo]?.[selectedSessionDate] || [];
+  const exo = EXERCISES.find(e=>e.id===selectedExo) || EXERCISES[0];
+  const current1RM = maxes[selectedExo] || exo.default1RM;
 
-  const todayDow=new Date().getDay();
-  const todayProgram=PROGRAM[todayDow]||PROGRAM[0];
+  const navDay = offset => {
+    const d = keyToDate(selectedSessionDate); d.setDate(d.getDate() + offset);
+    const nk = dateToKey(d); if (nk <= todayKey()) setSelectedSessionDate(nk);
+  };
 
-  const getRecommendedWeight=(exoId,intensityPct)=>{
-    const rm=maxes[exoId]||EXERCISES.find(e=>e.id===exoId)?.default1RM||0;
-    const exoSessions=sessions[exoId]||{};
-    const pastDates=Object.keys(exoSessions).filter(d=>d!==selectedSessionDate).sort().reverse();
-    const last=pastDates.length?{date:pastDates[0],sets:exoSessions[pastDates[0]]}:null;
-    const progExo=Object.values(PROGRAM).flatMap(p=>p.exercises||[]).find(e=>e.exoId===exoId);
-    if(last?.sets?.length>0){
-      const lw=last.sets[0].weight,avgReps=last.sets.reduce((s,x)=>s+x.reps,0)/last.sets.length;
-      if(progExo){
-        if(avgReps>=progExo.repsMax) return{weight:round(lw+2.5),tag:"↑ +2.5kg",tagColor:"#44CC44"};
-        if(avgReps>=progExo.repsMin) return{weight:lw,tag:"= Maintien",tagColor:"#FFB300"};
-        return{weight:round(Math.max(lw-2.5,0)),tag:"↓ −2.5kg",tagColor:"#FF4444"};
+  const getRecommendedWeight = (exoId, intensityPct) => {
+    const rm = maxes[exoId] || EXERCISES.find(e=>e.id===exoId)?.default1RM || 0;
+    const exoSessions = sessions[exoId] || {};
+    const pastDates = Object.keys(exoSessions).filter(d=>d!==selectedSessionDate).sort().reverse();
+    const last = pastDates.length ? {date:pastDates[0], sets:exoSessions[pastDates[0]]} : null;
+    const progExo = Object.values(PROGRAM).flatMap(p=>p.exercises||[]).find(e=>e.exoId===exoId);
+    if (last?.sets?.length > 0) {
+      const lw = last.sets[0].weight, avgReps = last.sets.reduce((s,x)=>s+x.reps,0)/last.sets.length;
+      if (progExo) {
+        if (avgReps >= progExo.repsMax) return {weight:round(lw+2.5), tag:"↑ +2.5kg", tagColor:"#44CC44"};
+        if (avgReps >= progExo.repsMin) return {weight:lw, tag:"= Maintien", tagColor:"#FFB300"};
+        return {weight:round(Math.max(lw-2.5,0)), tag:"↓ −2.5kg", tagColor:"#FF4444"};
       }
-      return{weight:lw,tag:"= Maintien",tagColor:"#888"};
+      return {weight:lw, tag:"= Maintien", tagColor:"#888"};
     }
-    if(intensityPct) return{weight:round(rm*intensityPct/100),tag:`${intensityPct}% 1RM`,tagColor:"#888"};
-    return{weight:null,tag:"Nouveau",tagColor:"#888"};
+    if (intensityPct) return {weight:round(rm*intensityPct/100), tag:`${intensityPct}% 1RM`, tagColor:"#888"};
+    return {weight:null, tag:"Nouveau", tagColor:"#888"};
   };
 
-  const getLastSession=exoId=>{
-    const s=sessions[exoId]||{};
-    const dates=Object.keys(s).filter(d=>d!==selectedSessionDate).sort().reverse();
-    return dates.length?{date:dates[0],sets:s[dates[0]]}:null;
+  const getLastSession = exoId => {
+    const s = sessions[exoId] || {};
+    const dates = Object.keys(s).filter(d=>d!==selectedSessionDate).sort().reverse();
+    return dates.length ? {date:dates[0], sets:s[dates[0]]} : null;
   };
 
-  const isToday=selectedSessionDate===todayKey();
-  const currentSets=sessions[selectedExo]?.[selectedSessionDate]||[];
-  const exo=EXERCISES.find(e=>e.id===selectedExo)||EXERCISES[0];
-  const current1RM=maxes[selectedExo]||exo.default1RM;
-
-  const navDay=offset=>{const d=keyToDate(selectedSessionDate);d.setDate(d.getDate()+offset);const nk=dateToKey(d);if(nk<=todayKey())setSelectedSessionDate(nk);};
-
-  const addSet=()=>{
-    const w=parseFloat(logWeight),r=parseInt(logReps);
-    if(isNaN(w)||isNaN(r)||r<=0||w<=0)return;
-    const newSet={weight:w,reps:r,time:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
-    const newSets=[...currentSets,newSet];
+  const addSet = () => {
+    const w = parseFloat(logWeight), r = parseInt(logReps);
+    if (isNaN(w)||isNaN(r)||r<=0||w<=0) return;
+    const newSet = {weight:w, reps:r, time:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
+    const newSets = [...currentSets, newSet];
     setSessions(prev=>({...prev,[selectedExo]:{...(prev[selectedExo]||{}),[selectedSessionDate]:newSets}}));
-    const est1RM=round(w*(1+r/30));
-    if(est1RM>current1RM){setMaxes(prev=>({...prev,[selectedExo]:est1RM}));notify(`🔥 Nouveau 1RM : ${est1RM} kg !`,"pr");}
+    const est1RM = round(w*(1+r/30));
+    if (est1RM > current1RM) { setMaxes(prev=>({...prev,[selectedExo]:est1RM})); notify(`🔥 Nouveau 1RM : ${est1RM} kg !`, "pr"); }
     else notify(`Série ${newSets.length} enregistrée ✓`);
-    const best=newSets.reduce((b,s)=>round(s.weight*(1+s.reps/30))>round(b.weight*(1+b.reps/30))?s:b);
+    const best = newSets.reduce((b,s)=>round(s.weight*(1+s.reps/30))>round(b.weight*(1+b.reps/30))?s:b);
     setHistory(prev=>({...prev,[selectedExo]:{...(prev[selectedExo]||{}),[WEEK_KEY()]:{weight:best.weight,reps:best.reps,sets:newSets.length,estimated1RM:round(best.weight*(1+best.reps/30)),date:new Date().toLocaleDateString("fr-FR")}}}));
-    if(isToday)startTimer(timerDuration);
-    setLogWeight("");setLogReps("");
+    if (isToday) startTimer(timerDuration);
+    setLogWeight(""); setLogReps("");
   };
 
-  const duplicateLastSet=()=>{
-    if(!currentSets.length)return;
-    const last=currentSets[currentSets.length-1];
-    const newSets=[...currentSets,{weight:last.weight,reps:last.reps,time:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}];
+  const duplicateLastSet = () => {
+    if (!currentSets.length) return;
+    const last = currentSets[currentSets.length-1];
+    const newSets = [...currentSets, {weight:last.weight, reps:last.reps, time:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}];
     setSessions(prev=>({...prev,[selectedExo]:{...(prev[selectedExo]||{}),[selectedSessionDate]:newSets}}));
     notify(`🔁 Série ${newSets.length} dupliquée`);
-    if(isToday)startTimer(timerDuration);
+    if (isToday) startTimer(timerDuration);
   };
 
-  const deleteSet=idx=>{
-    const updated=currentSets.filter((_,i)=>i!==idx);
+  const deleteSet = idx => {
+    const updated = currentSets.filter((_,i)=>i!==idx);
     setSessions(prev=>({...prev,[selectedExo]:{...(prev[selectedExo]||{}),[selectedSessionDate]:updated}}));
     notify("Série supprimée");
   };
 
-  const cardioTypeData=CARDIO_TYPES.find(c=>c.id===cardioType);
-  const isDistance=!!cardioTypeData?.isDistance,isIncline=!!cardioTypeData?.isIncline,isSteps=!!cardioTypeData?.isSteps;
-  const calcTapisKcal=()=>{const v=parseFloat(tapisVitesse),p=parseFloat(tapisPente),d=parseFloat(tapisDuree);if(isNaN(v)||isNaN(p)||isNaN(d)||d<=0)return 0;const MET=(0.1*(v*1000/60)+1.8*(v*1000/60)*(p/100)+3.5)/3.5;return Math.round(MET*poids*(d/60));};
-  const kcalEstimee=isIncline?calcTapisKcal():(cardioVal?(isSteps?Math.round((parseFloat(cardioVal)/1000)*poids*0.5):isDistance?Math.round(parseFloat(cardioVal)*poids*(cardioTypeData?.kcalPerKm||1)):Math.round(parseFloat(cardioVal)*(cardioTypeData?.kcalPerMin?.[cardioIntensite]||10))):0);
+  const cardioTypeData = CARDIO_TYPES.find(c=>c.id===cardioType);
+  const isDistance = !!cardioTypeData?.isDistance, isIncline = !!cardioTypeData?.isIncline, isSteps = !!cardioTypeData?.isSteps;
+  const calcTapisKcal = () => {
+    const v=parseFloat(tapisVitesse),p=parseFloat(tapisPente),d=parseFloat(tapisDuree);
+    if (isNaN(v)||isNaN(p)||isNaN(d)||d<=0) return 0;
+    const MET = (0.1*(v*1000/60) + 1.8*(v*1000/60)*(p/100) + 3.5) / 3.5;
+    return Math.round(MET * poids * (d/60));
+  };
+  const kcalEstimee = isIncline ? calcTapisKcal() : (cardioVal ? (isSteps ? Math.round((parseFloat(cardioVal)/1000)*poids*0.5) : isDistance ? Math.round(parseFloat(cardioVal)*poids*(cardioTypeData?.kcalPerKm||1)) : Math.round(parseFloat(cardioVal)*(cardioTypeData?.kcalPerMin?.[cardioIntensite]||10))) : 0);
 
-  const logCardio=()=>{
-    if(isIncline){if(kcalEstimee<=0)return;setCardioLog({...cardioLog,[selectedCardioDate]:[...todayCardio,{type:cardioType,nom:`Tapis ${tapisVitesse}km/h ${tapisPente}%`,val:parseFloat(tapisDuree),unit:"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}]});setTapisVitesse("");setTapisPente("");setTapisDuree("");}
-    else{const val=parseFloat(cardioVal);if(isNaN(val)||val<=0)return;setCardioLog({...cardioLog,[selectedCardioDate]:[...todayCardio,{type:cardioType,nom:cardioTypeData.name,val,unit:isSteps?"pas":isDistance?"km":"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}]});setCardioVal("");}
+  const logCardio = () => {
+    if (isIncline) {
+      if (kcalEstimee<=0) return;
+      setCardioLog({...cardioLog,[selectedCardioDate]:[...todayCardio,{type:cardioType,nom:`Tapis ${tapisVitesse}km/h ${tapisPente}%`,val:parseFloat(tapisDuree),unit:"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}]});
+      setTapisVitesse(""); setTapisPente(""); setTapisDuree("");
+    } else {
+      const val = parseFloat(cardioVal); if (isNaN(val)||val<=0) return;
+      setCardioLog({...cardioLog,[selectedCardioDate]:[...todayCardio,{type:cardioType,nom:cardioTypeData.name,val,unit:isSteps?"pas":isDistance?"km":"min",kcal:kcalEstimee,heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}]});
+      setCardioVal("");
+    }
     notify(`Cardio logué : ~${kcalEstimee} kcal 🔥`);
   };
 
-  const logPoids=()=>{const val=parseFloat(inputPoids);if(isNaN(val)||val<30||val>200)return;setPoidsLog({...poidsLog,[todayKey()]:val});setProfile(p=>({...p,poids:val}));setInputPoids("");notify(`Poids : ${val} kg enregistré`);};
-  const poidsEntries=Object.entries(poidsLog).sort((a,b)=>b[0].localeCompare(a[0]));
-  const poidsAujourdhui=poidsLog[todayKey()];
-  const poidsHier=(()=>{const h=new Date();h.setDate(h.getDate()-1);return poidsLog[h.toISOString().split("T")[0]];})();
-  const poidsTendance=poidsHier&&poidsAujourdhui?+(poidsAujourdhui-poidsHier).toFixed(1):null;
-  const weightChartData=poidsEntries.slice(0,14).reverse().map(([date,val])=>({val,label:new Date(date).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}));
+  // ── POIDS avec virgule et suppression ────────────────────────────────
+  const logPoids = () => {
+    const val = parseFloat(inputPoids.toString().replace(",", "."));
+    if (isNaN(val)||val<30||val>200) return;
+    setPoidsLog({...poidsLog,[todayKey()]:val});
+    setProfile(p=>({...p,poids:val}));
+    setInputPoids("");
+    notify(`Poids : ${val} kg enregistré`);
+  };
 
-  const chargeChartData=Object.entries(sessions[statsExo]||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12).map(([date,sets])=>({val:sets.length?Math.max(...sets.map(s=>s.weight)):0,label:fmtShort(date)}));
-  const repsChartData=Object.entries(sessions[statsExo]||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12).map(([date,sets])=>({val:sets.length?+(sets.reduce((s,x)=>s+x.reps,0)/sets.length).toFixed(1):0,label:fmtShort(date)}));
-  const rm1ChartData=Object.entries(history[statsExo]||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12).map(([wk,d])=>({val:d.estimated1RM,label:`S${wk.split("-W")[1]||""}`}));
- const deficitChartData=(()=>{
-  const entries=Object.entries(calMangees).filter(([,cal])=>parseInt(cal)>0).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14);
-  return entries.map(([date,cal])=>{
-    const cardioJour=(cardioLog[date]||[]).reduce((c,e)=>c+e.kcal,0);
-    return{deficit:Math.round((tdee+cardioJour)-parseInt(cal)),label:new Date(date).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})};
-  });
-})();
+  const deletePoids = (date) => {
+    const newLog = {...poidsLog}; delete newLog[date]; setPoidsLog(newLog);
+    notify("Poids supprimé");
+  };
 
-  const askCoach=async()=>{
-    if(!coachInput.trim()||coachLoading)return;
-    const userMsg=coachInput.trim();setCoachInput("");
-    const newHist=[...coachHistory,{role:"user",content:userMsg}];
-    setCoachHistory(newHist);setCoachLoading(true);
-    try{
-      const sys=`Tu es un coach fitness expert, direct, en français. Profil: ${profile.age}ans, ${profile.taille}cm, ${poids}kg. Objectif: ${objData.label} → ${cibleKcal}kcal/j. Macros: ${cibleProt}g P/${cibleGluc}g G/${cibleLip}g L. PPL 5j/sem. 1RM DC:${maxes.dc||95}kg Squat:${maxes.squat||100}kg. Réponds en max 150 mots.`;
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:400,system:sys,messages:newHist})});
-      const data=await res.json();
-      setCoachHistory([...newHist,{role:"assistant",content:data.content?.[0]?.text||"Erreur."}]);
-    }catch{setCoachHistory([...newHist,{role:"assistant",content:"Erreur de connexion."}]);}
+  const poidsEntries = Object.entries(poidsLog).sort((a,b)=>b[0].localeCompare(a[0]));
+  const poidsAujourdhui = poidsLog[todayKey()];
+  const poidsHier = (() => { const h=new Date(); h.setDate(h.getDate()-1); return poidsLog[h.toISOString().split("T")[0]]; })();
+  const poidsTendance = poidsHier && poidsAujourdhui ? +(poidsAujourdhui - poidsHier).toFixed(1) : null;
+  const weightChartData = poidsEntries.slice(0,14).reverse().map(([date,val])=>({val, label:new Date(date).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}));
+
+  const chargeChartData = Object.entries(sessions[statsExo]||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12).map(([date,sets])=>({val:sets.length?Math.max(...sets.map(s=>s.weight)):0, label:fmtShort(date)}));
+  const repsChartData = Object.entries(sessions[statsExo]||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12).map(([date,sets])=>({val:sets.length?+(sets.reduce((s,x)=>s+x.reps,0)/sets.length).toFixed(1):0, label:fmtShort(date)}));
+  const rm1ChartData = Object.entries(history[statsExo]||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12).map(([wk,d])=>({val:d.estimated1RM, label:`S${wk.split("-W")[1]||""}`}));
+
+  const askCoach = async () => {
+    if (!coachInput.trim()||coachLoading) return;
+    const userMsg = coachInput.trim(); setCoachInput("");
+    const newHist = [...coachHistory, {role:"user",content:userMsg}];
+    setCoachHistory(newHist); setCoachLoading(true);
+    try {
+      const sys = `Tu es un coach fitness expert, direct, en français. Profil: ${profile.age}ans, ${profile.taille}cm, ${poids}kg. Objectif: ${objData.label} → ${cibleKcal}kcal/j. Macros: ${cibleProt}g P/${cibleGluc}g G/${cibleLip}g L. PPL 5j/sem. 1RM DC:${maxes.dc||95}kg Squat:${maxes.squat||100}kg. Réponds en max 150 mots.`;
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:400,system:sys,messages:newHist})});
+      const data = await res.json();
+      setCoachHistory([...newHist, {role:"assistant",content:data.content?.[0]?.text||"Erreur."}]);
+    } catch { setCoachHistory([...newHist, {role:"assistant",content:"Erreur de connexion."}]); }
     setCoachLoading(false);
   };
 
-  if(!isLoaded) return(
+  if (!isLoaded) return (
     <div style={{minHeight:"100vh",background:"#0A0A0F",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
       <div style={{fontSize:48}}>🏋️</div>
       <div style={{color:"#FF6B35",fontWeight:700,fontSize:16}}>Chargement de tes données...</div>
@@ -593,9 +572,9 @@ function Tracker({ user, onLogout }) {
 
   return (
     <div style={{minHeight:"100vh",background:"#0A0A0F",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#F0F0F0"}}>
-      {notification&&<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:notification.type==="pr"?"linear-gradient(135deg,#FF6B35,#FF4444)":"#101820",border:"1px solid #2A4A2A",color:"#fff",padding:"12px 24px",borderRadius:12,fontWeight:700,zIndex:999,fontSize:14,whiteSpace:"nowrap"}}>{notification.msg}</div>}
+      {notification && <div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:notification.type==="pr"?"linear-gradient(135deg,#FF6B35,#FF4444)":"#101820",border:"1px solid #2A4A2A",color:"#fff",padding:"12px 24px",borderRadius:12,fontWeight:700,zIndex:999,fontSize:14,whiteSpace:"nowrap"}}>{notification.msg}</div>}
 
-      {timerActive&&(
+      {timerActive && (
         <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#111118",borderTop:"2px solid #FF6B35",padding:"12px 20px 14px",zIndex:100}}>
           <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:10}}>
             <div style={{minWidth:64}}>
@@ -619,16 +598,16 @@ function Tracker({ user, onLogout }) {
             <div style={{fontSize:22,fontWeight:900,color:"#FF6B35"}}>{cibleKcal.toLocaleString()}</div>
             <div style={{fontSize:9,color:"#555"}}>kcal cible</div>
             <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"flex-end",marginTop:2}}>
-              {isSaving&&<div style={{fontSize:9,color:"#444"}}>💾 sauvegarde...</div>}
+              {isSaving && <div style={{fontSize:9,color:"#444"}}>💾 sauvegarde...</div>}
               <button onClick={onLogout} style={{background:"transparent",border:"none",color:"#333",fontSize:10,cursor:"pointer"}}>changer d'utilisateur</button>
             </div>
           </div>
         </div>
         <div style={{display:"flex",gap:8,marginTop:10}}>
           {[
-            {label:"Mangé",  val:calAujourdhui>0?`${calAujourdhui} kcal`:"—",color:calAujourdhui>0?"#F0F0F0":"#444"},
-            {label:"Cardio", val:totalKcalCardio>0?`+${totalKcalCardio}`:"—",color:totalKcalCardio>0?"#FF6B35":"#444"},
-            {label:"Déficit",val:deficitReel!==null?`${deficitReel>0?"+":""}${deficitReel}`:"—",color:deficitReel!==null?(deficitReel<0?"#44CC44":deficitReel>200?"#FF4444":"#FFB300"):"#444"},
+            {label:"Mangé", val:calAujourdhui>0?`${calAujourdhui} kcal`:"—", color:calAujourdhui>0?"#F0F0F0":"#444"},
+            {label:"Cardio", val:totalKcalCardio>0?`+${totalKcalCardio}`:"—", color:totalKcalCardio>0?"#FF6B35":"#444"},
+            {label:"Déficit", val:deficitReel!==null?`${deficitReel>0?"+":""}${deficitReel}`:"—", color:deficitReel!==null?(deficitReel>0?"#44CC44":deficitReel<-200?"#FF4444":"#FFB300"):"#444"},
           ].map(item=>(
             <div key={item.label} style={{flex:1,background:"#0D0D14",borderRadius:8,padding:"6px 8px",textAlign:"center"}}>
               <div style={{fontSize:9,color:"#444"}}>{item.label}</div>
@@ -651,21 +630,20 @@ function Tracker({ user, onLogout }) {
       <div style={{padding:"14px 16px",paddingBottom:timerActive?120:40}}>
 
         {/* SÉANCE */}
-        {activeTab==="programme"&&(
+        {activeTab==="programme" && (
           <>
             <div style={{background:todayProgram.type?`linear-gradient(135deg,${catColor[todayProgram.type]}22,#111118)`:"#111118",border:`2px solid ${todayProgram.type?catColor[todayProgram.type]:"#2A2A3A"}`,borderRadius:16,padding:"16px 20px",marginBottom:14}}>
               <div style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:2,marginBottom:4}}>{new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}</div>
               <div style={{fontSize:24,fontWeight:900,color:todayProgram.type?catColor[todayProgram.type]:"#444"}}>{todayProgram.name}</div>
-              {todayProgram.cardio&&<div style={{fontSize:12,color:"#555",marginTop:6}}>🏃 {todayProgram.cardio}</div>}
+              {todayProgram.cardio && <div style={{fontSize:12,color:"#555",marginTop:6}}>🏃 {todayProgram.cardio}</div>}
             </div>
             {(todayProgram.exercises||[]).map((progExo,i)=>{
-              const exoData=EXERCISES.find(e=>e.id===progExo.exoId);if(!exoData)return null;
-              const rm=maxes[progExo.exoId]||exoData.default1RM;
-              const rec=getRecommendedWeight(progExo.exoId,progExo.intensityPct);
-              const lastSess=getLastSession(progExo.exoId);
-              const todaySets=sessions[progExo.exoId]?.[todayKey()]||[];
-              const done=todaySets.length>=progExo.sets;
-              return(
+              const exoData = EXERCISES.find(e=>e.id===progExo.exoId); if (!exoData) return null;
+              const rec = getRecommendedWeight(progExo.exoId, progExo.intensityPct);
+              const lastSess = getLastSession(progExo.exoId);
+              const todaySets = sessions[progExo.exoId]?.[todayKey()] || [];
+              const done = todaySets.length >= progExo.sets;
+              return (
                 <div key={i} style={{background:done?"#0A1A0A":"#111118",border:`1px solid ${done?"#2A4A2A":"#1E1E2E"}`,borderRadius:12,padding:14,marginBottom:8}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                     <div>
@@ -673,13 +651,13 @@ function Tracker({ user, onLogout }) {
                       <div style={{fontSize:11,color:"#555",marginTop:2}}>{progExo.sets}×{progExo.repsMin}-{progExo.repsMax} • {progExo.note}</div>
                     </div>
                     <div style={{textAlign:"right"}}>
-                      {rec.weight&&<div style={{fontSize:22,fontWeight:900,color:catColor[exoData.category]}}>{rec.weight} kg</div>}
+                      {rec.weight && <div style={{fontSize:22,fontWeight:900,color:catColor[exoData.category]}}>{rec.weight} kg</div>}
                       <div style={{fontSize:11,fontWeight:700,color:rec.tagColor}}>{rec.tag}</div>
-                      <div style={{fontSize:10,color:"#333"}}>1RM : {rm} kg</div>
+                      <div style={{fontSize:10,color:"#333"}}>1RM : {maxes[progExo.exoId]||exoData.default1RM} kg</div>
                     </div>
                   </div>
-                  {lastSess&&<div style={{background:"#0D0D14",borderRadius:8,padding:"6px 10px",marginBottom:8,fontSize:11,color:"#555"}}>Dernière ({fmtShort(lastSess.date)}) : {lastSess.sets.map((s,j)=><span key={j} style={{color:"#888"}}>{s.weight}×{s.reps}{j<lastSess.sets.length-1?", ":""}</span>)}</div>}
-                  {todaySets.length>0&&<div style={{fontSize:11,color:"#44CC44",marginBottom:6}}>{todaySets.map(s=>`${s.weight}×${s.reps}`).join(", ")} ({todaySets.length}/{progExo.sets})</div>}
+                  {lastSess && <div style={{background:"#0D0D14",borderRadius:8,padding:"6px 10px",marginBottom:8,fontSize:11,color:"#555"}}>Dernière ({fmtShort(lastSess.date)}) : {lastSess.sets.map((s,j)=><span key={j} style={{color:"#888"}}>{s.weight}×{s.reps}{j<lastSess.sets.length-1?", ":""}</span>)}</div>}
+                  {todaySets.length>0 && <div style={{fontSize:11,color:"#44CC44",marginBottom:6}}>{todaySets.map(s=>`${s.weight}×${s.reps}`).join(", ")} ({todaySets.length}/{progExo.sets})</div>}
                   <button onClick={()=>{setSelectedExo(progExo.exoId);setFilterCat(exoData.category);setSelectedSessionDate(todayKey());setActiveTab("log");}}
                     style={{background:catColor[exoData.category]+"22",border:`1px solid ${catColor[exoData.category]}44`,borderRadius:8,color:catColor[exoData.category],padding:"7px 14px",cursor:"pointer",fontWeight:700,fontSize:12,width:"100%"}}>
                     {done?"✏️ Modifier":"📝 Logger →"}
@@ -687,31 +665,31 @@ function Tracker({ user, onLogout }) {
                 </div>
               );
             })}
-            {todayProgram.exercises?.length===0&&<div style={{textAlign:"center",padding:"40px 20px"}}><div style={{fontSize:48}}>😴</div><div style={{fontSize:16,color:"#444",marginTop:12}}>Repos — mange bien, dors bien</div></div>}
+            {todayProgram.exercises?.length===0 && <div style={{textAlign:"center",padding:"40px 20px"}}><div style={{fontSize:48}}>😴</div><div style={{fontSize:16,color:"#444",marginTop:12}}>Repos — mange bien, dors bien</div></div>}
           </>
         )}
 
         {/* LOGGER */}
-        {activeTab==="log"&&(
+        {activeTab==="log" && (
           <>
             <ExoSelector filterCat={filterCat} setFilterCat={setFilterCat} selectedExo={selectedExo} setSelectedExo={setSelectedExo}/>
             <div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
               <button onClick={()=>navDay(-1)} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
               <div style={{textAlign:"center"}}>
                 <div style={{fontWeight:800,fontSize:14,color:isToday?"#FF6B35":"#F0F0F0"}}>{isToday?"📅 Aujourd'hui":fmtShort(selectedSessionDate)}</div>
-                {!isToday&&<div style={{fontSize:11,color:"#FF6B35",marginTop:2}}>⚠️ Mode édition historique</div>}
+                {!isToday && <div style={{fontSize:11,color:"#FF6B35",marginTop:2}}>⚠️ Mode édition historique</div>}
               </div>
               <button onClick={()=>navDay(1)} disabled={isToday} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:isToday?"#333":"#888",padding:"8px 14px",cursor:isToday?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
             </div>
             {(()=>{
-              const progExoData=Object.values(PROGRAM).flatMap(p=>p.exercises||[]).find(e=>e.exoId===selectedExo);
-              const rec=getRecommendedWeight(selectedExo,progExoData?.intensityPct);
-              const lastSess=getLastSession(selectedExo);
-              return(
+              const progExoData = Object.values(PROGRAM).flatMap(p=>p.exercises||[]).find(e=>e.exoId===selectedExo);
+              const rec = getRecommendedWeight(selectedExo, progExoData?.intensityPct);
+              const lastSess = getLastSession(selectedExo);
+              return (
                 <div style={{background:"linear-gradient(135deg,#1A1000,#0A0A18)",border:`2px solid ${catColor[exo?.category]}55`,borderRadius:14,padding:14,marginBottom:12}}>
                   <div style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>🎯 Recommandation séance</div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
-                    {progExoData&&<>
+                    {progExoData && <>
                       <div style={{background:catColor[exo?.category]+"22",border:`1px solid ${catColor[exo?.category]}44`,borderRadius:8,padding:"8px 14px",flex:1,textAlign:"center"}}>
                         <div style={{fontSize:9,color:"#555"}}>SÉRIES</div>
                         <div style={{fontSize:24,fontWeight:900,color:catColor[exo?.category]}}>{progExoData.sets}</div>
@@ -720,7 +698,7 @@ function Tracker({ user, onLogout }) {
                         <div style={{fontSize:9,color:"#555"}}>REPS</div>
                         <div style={{fontSize:24,fontWeight:900,color:"#FFB300"}}>{progExoData.repsMin}–{progExoData.repsMax}</div>
                       </div>
-                      {rec.weight&&<div style={{background:"#44CC4422",border:"1px solid #44CC4444",borderRadius:8,padding:"8px 14px",flex:1,textAlign:"center"}}>
+                      {rec.weight && <div style={{background:"#44CC4422",border:"1px solid #44CC4444",borderRadius:8,padding:"8px 14px",flex:1,textAlign:"center"}}>
                         <div style={{fontSize:9,color:"#555"}}>CHARGE</div>
                         <div style={{fontSize:24,fontWeight:900,color:"#44CC44"}}>{rec.weight} kg</div>
                       </div>}
@@ -730,7 +708,7 @@ function Tracker({ user, onLogout }) {
                     <div style={{fontSize:12,fontWeight:700,color:rec.tagColor}}>{rec.tag}{progExoData?.note?` • ${progExoData.note}`:""}</div>
                     <div style={{textAlign:"right"}}><div style={{fontSize:9,color:"#555"}}>1RM</div><div style={{fontSize:20,fontWeight:900,color:catColor[exo?.category]}}>{current1RM} kg</div></div>
                   </div>
-                  {lastSess&&<div style={{marginTop:8,background:"#0D0D14",borderRadius:8,padding:"6px 10px",fontSize:11,color:"#555"}}>Dernière ({fmtShort(lastSess.date)}) : {lastSess.sets.map((s,j)=><span key={j} style={{color:"#888"}}>{s.weight}×{s.reps}{j<lastSess.sets.length-1?", ":""}</span>)}</div>}
+                  {lastSess && <div style={{marginTop:8,background:"#0D0D14",borderRadius:8,padding:"6px 10px",fontSize:11,color:"#555"}}>Dernière ({fmtShort(lastSess.date)}) : {lastSess.sets.map((s,j)=><span key={j} style={{color:"#888"}}>{s.weight}×{s.reps}{j<lastSess.sets.length-1?", ":""}</span>)}</div>}
                 </div>
               );
             })()}
@@ -747,7 +725,7 @@ function Tracker({ user, onLogout }) {
               <div><Label>Charge (kg)</Label><NumInput value={logWeight} onChange={setLogWeight} placeholder="ex: 90"/></div>
               <div><Label>Reps</Label><NumInput value={logReps} onChange={setLogReps} placeholder="ex: 5"/></div>
             </div>
-            {logWeight&&logReps&&!isNaN(parseFloat(logWeight))&&!isNaN(parseInt(logReps))&&(
+            {logWeight && logReps && !isNaN(parseFloat(logWeight)) && !isNaN(parseInt(logReps)) && (
               <div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:10,padding:"10px 14px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div style={{fontSize:12,color:"#555"}}>1RM estimé (Epley)</div>
                 <div style={{fontSize:20,fontWeight:900,color:"#FF6B35"}}>{round(parseFloat(logWeight)*(1+parseInt(logReps)/30))} kg {round(parseFloat(logWeight)*(1+parseInt(logReps)/30))>current1RM&&<span style={{fontSize:12,color:"#44CC44",marginLeft:8}}>🔥 PR!</span>}</div>
@@ -755,15 +733,15 @@ function Tracker({ user, onLogout }) {
             )}
             <div style={{display:"flex",gap:8,marginBottom:14}}>
               <Btn onClick={addSet} color={catColor[exo?.category]} style={{flex:1}}>+ Série {currentSets.length+1}</Btn>
-              {currentSets.length>0&&<button onClick={duplicateLastSet} style={{background:"#1E1E2E",border:`1px solid ${catColor[exo?.category]}44`,borderRadius:12,color:catColor[exo?.category],padding:"14px 16px",fontWeight:800,fontSize:20,cursor:"pointer"}}>🔁</button>}
+              {currentSets.length>0 && <button onClick={duplicateLastSet} style={{background:"#1E1E2E",border:`1px solid ${catColor[exo?.category]}44`,borderRadius:12,color:catColor[exo?.category],padding:"14px 16px",fontWeight:800,fontSize:20,cursor:"pointer"}}>🔁</button>}
             </div>
-            {currentSets.length>0&&(
+            {currentSets.length>0 && (
               <div style={{marginBottom:14}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><Label>Séries — {exo?.name}</Label><span style={{fontSize:12,color:"#555"}}>{currentSets.length} série{currentSets.length>1?"s":""}</span></div>
                 {currentSets.map((s,i)=>{
-                  const est=round(s.weight*(1+s.reps/30));
-                  const isBest=i===currentSets.reduce((bi,x,j)=>round(x.weight*(1+x.reps/30))>round(currentSets[bi].weight*(1+currentSets[bi].reps/30))?j:bi,0);
-                  return(
+                  const est = round(s.weight*(1+s.reps/30));
+                  const isBest = i===currentSets.reduce((bi,x,j)=>round(x.weight*(1+x.reps/30))>round(currentSets[bi].weight*(1+currentSets[bi].reps/30))?j:bi,0);
+                  return (
                     <div key={i} style={{background:isBest&&currentSets.length>1?"#141410":"#111118",border:`1px solid ${isBest&&currentSets.length>1?"#FFB30033":"#1E1E2E"}`,borderRadius:10,padding:"10px 14px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div style={{display:"flex",alignItems:"center",gap:10}}>
                         <div style={{width:28,height:28,borderRadius:"50%",background:catColor[exo?.category]+"22",border:`1px solid ${catColor[exo?.category]}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:catColor[exo?.category]}}>{i+1}</div>
@@ -773,7 +751,7 @@ function Tracker({ user, onLogout }) {
                     </div>
                   );
                 })}
-                {currentSets.length>=2&&<div style={{background:"#0D0D14",borderRadius:10,padding:"10px 14px",marginTop:4,fontSize:12,color:"#555",display:"flex",gap:16}}>
+                {currentSets.length>=2 && <div style={{background:"#0D0D14",borderRadius:10,padding:"10px 14px",marginTop:4,fontSize:12,color:"#555",display:"flex",gap:16}}>
                   <span>⭐ {currentSets.reduce((b,s)=>round(s.weight*(1+s.reps/30))>round(b.weight*(1+b.reps/30))?s:b).weight}×{currentSets.reduce((b,s)=>round(s.weight*(1+s.reps/30))>round(b.weight*(1+b.reps/30))?s:b).reps}</span>
                   <span>∅ {(currentSets.reduce((s,x)=>s+x.weight,0)/currentSets.length).toFixed(1)} kg</span>
                   <span>Vol {currentSets.reduce((s,x)=>s+x.weight*x.reps,0)} kg</span>
@@ -784,24 +762,24 @@ function Tracker({ user, onLogout }) {
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div>
                   <Label>1RM — {exo?.name}</Label>
-                  {editingMax?(
+                  {editingMax ? (
                     <div style={{display:"flex",gap:8,alignItems:"center"}}>
                       <input type="text" inputMode="decimal" value={tempMax} onChange={e=>setTempMax(e.target.value)} style={{background:"#1A1A2A",border:"1px solid #FF6B35",borderRadius:8,color:"#fff",padding:"6px 10px",fontSize:20,fontWeight:700,width:90,outline:"none"}} autoFocus/>
                       <span style={{color:"#888"}}>kg</span>
                       <button onClick={()=>{const v=parseFloat(tempMax);if(!isNaN(v)&&v>0){setMaxes(p=>({...p,[selectedExo]:v}));setEditingMax(false);notify(`1RM : ${v} kg`);}}} style={{background:"#FF6B35",border:"none",borderRadius:8,color:"#000",padding:"6px 12px",fontWeight:800,cursor:"pointer"}}>OK</button>
                       <button onClick={()=>setEditingMax(false)} style={{background:"#222",border:"none",borderRadius:8,color:"#888",padding:"6px 10px",cursor:"pointer"}}>✕</button>
                     </div>
-                  ):(
+                  ) : (
                     <div style={{fontSize:34,fontWeight:900,color:catColor[exo?.category],letterSpacing:-1}}>{current1RM} <span style={{fontSize:14,color:"#555",fontWeight:400}}>kg</span></div>
                   )}
                 </div>
-                {!editingMax&&<button onClick={()=>{setEditingMax(true);setTempMax(current1RM);}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:10,color:"#888",padding:"10px 12px",cursor:"pointer",fontSize:13}}>✏️</button>}
+                {!editingMax && <button onClick={()=>{setEditingMax(true);setTempMax(current1RM);}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:10,color:"#888",padding:"10px 12px",cursor:"pointer",fontSize:13}}>✏️</button>}
               </div>
             </Card>
             {(()=>{
-              const allDates=Object.keys(sessions[selectedExo]||{}).sort().reverse().filter(d=>d!==selectedSessionDate).slice(0,5);
-              if(!allDates.length)return null;
-              return(
+              const allDates = Object.keys(sessions[selectedExo]||{}).sort().reverse().filter(d=>d!==selectedSessionDate).slice(0,5);
+              if (!allDates.length) return null;
+              return (
                 <div style={{marginTop:4}}>
                   <Label>Historique — {exo?.name}</Label>
                   {allDates.map(date=>(
@@ -818,14 +796,14 @@ function Tracker({ user, onLogout }) {
         )}
 
         {/* CALORIES */}
-        {activeTab==="kcal"&&(
+        {activeTab==="kcal" && (
           <>
             <Card>
               <Label>Mon objectif</Label>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
                 {OBJECTIFS.map(o=>{
-                  const tc=o.label.startsWith("🔥")?"#FF4444":o.label.startsWith("⚖️")?"#FFB300":o.label.startsWith("🎯")?"#4ECDC4":"#4488FF";
-                  return<button key={o.id} onClick={()=>setObjectif(o.id)} style={{padding:"10px 12px",borderRadius:12,border:`1px solid ${objectif===o.id?tc:"#1E1E2E"}`,cursor:"pointer",textAlign:"left",background:objectif===o.id?tc+"22":"#111118",color:objectif===o.id?tc:"#666",fontWeight:objectif===o.id?800:400,fontSize:13}}>
+                  const tc = o.label.startsWith("🔥")?"#FF4444":o.label.startsWith("⚖️")?"#FFB300":o.label.startsWith("🎯")?"#4ECDC4":"#4488FF";
+                  return <button key={o.id} onClick={()=>setObjectif(o.id)} style={{padding:"10px 12px",borderRadius:12,border:`1px solid ${objectif===o.id?tc:"#1E1E2E"}`,cursor:"pointer",textAlign:"left",background:objectif===o.id?tc+"22":"#111118",color:objectif===o.id?tc:"#666",fontWeight:objectif===o.id?800:400,fontSize:13}}>
                     <div style={{fontWeight:700}}>{o.label}</div><div style={{fontSize:11,opacity:0.7}}>{o.desc}</div>
                   </button>;
                 })}
@@ -834,7 +812,7 @@ function Tracker({ user, onLogout }) {
                 <Label>Profil</Label>
                 <button onClick={()=>{setEditingProfile(!editingProfile);setTmpProfile({...profile});}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"5px 10px",cursor:"pointer",fontSize:12}}>{editingProfile?"Fermer":"✏️ Éditer"}</button>
               </div>
-              {editingProfile&&(
+              {editingProfile && (
                 <div style={{marginBottom:12}}>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
                     {[{label:"Âge",key:"age"},{label:"Taille (cm)",key:"taille"},{label:"Poids (kg)",key:"poids"}].map(({label,key})=>(
@@ -862,205 +840,75 @@ function Tracker({ user, onLogout }) {
                 </div>
               </div>
             </Card>
-            <Card>
-              <Label>Calories mangées aujourd'hui</Label>
-              <div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-    <button onClick={()=>{const d=keyToDate(selectedCalDate);d.setDate(d.getDate()-1);setSelectedCalDate(dateToKey(d));}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
-    <div style={{textAlign:"center"}}>
-      <div style={{fontWeight:800,fontSize:14,color:selectedCalDate===todayKey()?"#FF6B35":"#F0F0F0"}}>{selectedCalDate===todayKey()?"📅 Aujourd'hui":fmtShort(selectedCalDate)}</div>
-      {selectedCalDate!==todayKey()&&<div style={{fontSize:11,color:"#FF6B35",marginTop:2}}>⚠️ Édition historique</div>}
-    </div>
-    <button onClick={()=>{const d=keyToDate(selectedCalDate);d.setDate(d.getDate()+1);const nk=dateToKey(d);if(nk<=todayKey())setSelectedCalDate(nk);}} disabled={selectedCalDate===todayKey()} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:selectedCalDate===todayKey()?"#333":"#888",padding:"8px 14px",cursor:selectedCalDate===todayKey()?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
-  </div>
-  <Label>Calories — {selectedCalDate===todayKey()?"aujourd'hui":fmtShort(selectedCalDate)}</Label>
-<div style={{display:"flex",gap:8,marginBottom:12}}>
-  <NumInput value={calMangees[selectedCalDate]||""} onChange={v=>setCalMangees(prev=>({...prev,[selectedCalDate]:v}))} placeholder={`objectif : ${cibleKcal} kcal`} style={{flex:1}}/>
-  <span style={{display:"flex",alignItems:"center",color:"#555"}}>kcal</span>
-</div>
-{selectedCalDate !== todayKey() && (
-  <Btn onClick={async()=>{
-    await saveUserData(user, {maxes,history,sessions,profile,objectif,poidsLog,cardioLog,calMangees,deficitLog});
-    notify("✅ Jour sauvegardé !");
-  }} color="#4ECDC4" textColor="#000" style={{marginBottom:12}}>
-    💾 Sauvegarder ce jour
-  </Btn>
 
-)}
-  {calMangees[selectedCalDate]&&(()=>{
-    const calJour=parseInt(calMangees[selectedCalDate])||0;
-    const cardioJour=(cardioLog[selectedCalDate]||[]).reduce((s,e)=>s+e.kcal,0);
-    const defJour=(tdee+cardioJour)-calJour;
-    const ok=Math.abs(cibleKcal-calJour)<=50,trop=cibleKcal-calJour>50;
-    const pct=Math.min(100,Math.round((calJour/cibleKcal)*100));
-    const col=ok?"#44CC44":trop?"#FFB300":"#FF4444";
-    return(
-      <div style={{background:"#111118",border:`1px solid ${col}33`,borderRadius:12,padding:14,marginBottom:12}}>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#444",marginBottom:6}}><span>{calJour} kcal</span><span>Objectif : {cibleKcal} kcal</span></div>
-        <div style={{background:"#1A1A2A",borderRadius:6,height:10,marginBottom:10,overflow:"hidden"}}><div style={{background:col,borderRadius:6,height:10,width:`${pct}%`,transition:"width 0.5s"}}/></div>
-        <div style={{textAlign:"center",marginBottom:8}}>
-          {ok&&<div style={{fontSize:16,fontWeight:900,color:"#44CC44"}}>✅ Objectif atteint !</div>}
-          {trop&&<div style={{fontSize:14,fontWeight:800,color:"#FFB300"}}>Il reste {cibleKcal-calJour} kcal</div>}
-          {!ok&&!trop&&<div style={{fontSize:14,fontWeight:800,color:"#FF4444"}}>Dépassement de {Math.abs(cibleKcal-calJour)} kcal</div>}
-        </div>
-        <div style={{textAlign:"center",fontSize:12,color:"#888"}}>Déficit réel : <span style={{fontWeight:800,color:defJour>0?"#44CC44":"#FF4444"}}>{defJour>0?"+":""}{defJour} kcal</span></div>
-      </div>
-    );
-  })()}
-  {deficitChartData.length>0&&(
-    <>
-      <Label>Déficit 14 derniers jours</Label>
-      <div style={{background:"#0D0D14",borderRadius:10,padding:12,marginBottom:12}}><BarChart data={deficitChartData}/></div>
-      <div style={{background:"#0D0D14",borderRadius:10,padding:"10px 14px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:12,color:"#555"}}>Cumul semaine</div>
-          <div style={{fontSize:18,fontWeight:900,color:cumulDeficitSemaine>0?"#44CC44":cumulDeficitSemaine<-500?"#FF4444":"#FFB300"}}>{Math.round(cumulDeficitSemaine)>0?"+":""}{Math.round(cumulDeficitSemaine)} kcal</div>
-        </div>
-        <div style={{fontSize:11,color:"#444",marginTop:4}}>Perte théorique : ~{Math.abs(Math.round(cumulDeficitSemaine/7700*100)/100)} kg/sem</div>
-      </div>
-    </>
-  )}
-</Card>
             <Card>
-              <Label>Cardio du jour</Label>
-              <div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-  <button onClick={()=>{const d=keyToDate(selectedCardioDate);d.setDate(d.getDate()-1);setSelectedCardioDate(dateToKey(d));}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
-  <div style={{textAlign:"center"}}>
-    <div style={{fontWeight:800,fontSize:14,color:selectedCardioDate===todayKey()?"#FF6B35":"#F0F0F0"}}>
-      {selectedCardioDate===todayKey()?"📅 Aujourd'hui":fmtShort(selectedCardioDate)}
-    </div>
-  </div>
-  <button onClick={()=>{const d=keyToDate(selectedCardioDate);d.setDate(d.getDate()+1);const nk=dateToKey(d);if(nk<=todayKey())setSelectedCardioDate(nk);}} disabled={selectedCardioDate===todayKey()} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:selectedCardioDate===todayKey()?"#333":"#888",padding:"8px 14px",cursor:selectedCardioDate===todayKey()?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
-</div>
-              {totalKcalCardio>0&&<div style={{background:"linear-gradient(135deg,#1A0A00,#2A1000)",border:"1px solid #FF6B3533",borderRadius:10,padding:"12px 14px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:22,fontWeight:900,color:"#FF6B35"}}>+{totalKcalCardio} kcal</div><div style={{fontSize:11,color:"#555"}}>→ Cible ajustée</div></div><div style={{fontSize:32}}>🔥</div></div>}
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
-                {CARDIO_TYPES.map(c=><button key={c.id} onClick={()=>setCardioType(c.id)} style={{padding:10,borderRadius:12,cursor:"pointer",background:cardioType===c.id?"#FF6B3522":"#0D0D14",border:`1px solid ${cardioType===c.id?"#FF6B35":"#1E1E2E"}`,color:cardioType===c.id?"#FF6B35":"#555",fontWeight:cardioType===c.id?800:400,fontSize:12,textAlign:"left"}}><span style={{fontSize:16}}>{c.emoji}</span> {c.name}</button>)}
+              {/* Navigation date calories */}
+              <div style={{background:"#0D0D14",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <button onClick={()=>{const d=keyToDate(selectedCalDate);d.setDate(d.getDate()-1);setSelectedCalDate(dateToKey(d));}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontWeight:800,fontSize:14,color:selectedCalDate===todayKey()?"#FF6B35":"#F0F0F0"}}>{selectedCalDate===todayKey()?"📅 Aujourd'hui":fmtShort(selectedCalDate)}</div>
+                  {selectedCalDate!==todayKey() && <div style={{fontSize:11,color:"#FF6B35",marginTop:2}}>⚠️ Édition historique</div>}
+                </div>
+                <button onClick={()=>{const d=keyToDate(selectedCalDate);d.setDate(d.getDate()+1);const nk=dateToKey(d);if(nk<=todayKey())setSelectedCalDate(nk);}} disabled={selectedCalDate===todayKey()} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:selectedCalDate===todayKey()?"#333":"#888",padding:"8px 14px",cursor:selectedCalDate===todayKey()?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
               </div>
-              {isIncline?(
-                <>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
-                    <div><Label>Vitesse km/h</Label><NumInput value={tapisVitesse} onChange={setTapisVitesse} placeholder="4"/></div>
-                    <div><Label>Pente %</Label><NumInput value={tapisPente} onChange={setTapisPente} placeholder="15"/></div>
-                    <div><Label>Durée min</Label><NumInput value={tapisDuree} onChange={setTapisDuree} placeholder="20"/></div>
+
+              <Label>Calories — {selectedCalDate===todayKey()?"aujourd'hui":fmtShort(selectedCalDate)}</Label>
+              <div style={{display:"flex",gap:8,marginBottom:12}}>
+                <NumInput value={calMangees[selectedCalDate]||""} onChange={v=>setCalMangees(prev=>({...prev,[selectedCalDate]:v}))} placeholder={`objectif : ${cibleKcal} kcal`} style={{flex:1}}/>
+                <span style={{display:"flex",alignItems:"center",color:"#555"}}>kcal</span>
+              </div>
+
+              {selectedCalDate !== todayKey() && (
+                <Btn onClick={async()=>{
+                  await saveUserData(user, {maxes,history,sessions,profile,objectif,poidsLog,cardioLog,calMangees,deficitLog});
+                  notify("✅ Jour sauvegardé !");
+                }} color="#4ECDC4" textColor="#000" style={{marginBottom:12}}>
+                  💾 Sauvegarder ce jour
+                </Btn>
+              )}
+
+              {calMangees[selectedCalDate] && (()=>{
+                const calJour = parseInt(calMangees[selectedCalDate]) || 0;
+                const cardioJour = (cardioLog[selectedCalDate]||[]).reduce((s,e)=>s+e.kcal, 0);
+                const defJour = (tdee + cardioJour) - calJour;
+                const ok = Math.abs(cibleKcal-calJour)<=50, trop = cibleKcal-calJour>50;
+                const pct = Math.min(100, Math.round((calJour/cibleKcal)*100));
+                const col = ok?"#44CC44":trop?"#FFB300":"#FF4444";
+                return (
+                  <div style={{background:"#0D0D14",border:`1px solid ${col}33`,borderRadius:12,padding:14,marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#444",marginBottom:6}}><span>{calJour} kcal</span><span>Objectif : {cibleKcal} kcal</span></div>
+                    <div style={{background:"#1A1A2A",borderRadius:6,height:10,marginBottom:10,overflow:"hidden"}}><div style={{background:col,borderRadius:6,height:10,width:`${pct}%`,transition:"width 0.5s"}}/></div>
+                    <div style={{textAlign:"center",marginBottom:8}}>
+                      {ok && <div style={{fontSize:16,fontWeight:900,color:"#44CC44"}}>✅ Objectif atteint !</div>}
+                      {trop && <div style={{fontSize:14,fontWeight:800,color:"#FFB300"}}>Il reste {cibleKcal-calJour} kcal</div>}
+                      {!ok && !trop && <div style={{fontSize:14,fontWeight:800,color:"#FF4444"}}>Dépassement de {Math.abs(cibleKcal-calJour)} kcal</div>}
+                    </div>
+                    <div style={{textAlign:"center",fontSize:12,color:"#888"}}>Déficit réel : <span style={{fontWeight:800,color:defJour>0?"#44CC44":"#FF4444"}}>{defJour>0?"+":""}{defJour} kcal</span></div>
                   </div>
-                  {calcTapisKcal()>0&&<div style={{textAlign:"center",marginBottom:10,fontSize:28,fontWeight:900,color:"#FF6B35"}}>~{calcTapisKcal()} kcal</div>}
-                </>
-              ):(
+                );
+              })()}
+
+              {deficitChartData.length>0 && (
                 <>
-                  <NumInput value={cardioVal} onChange={setCardioVal} placeholder={isSteps?"ex: 8000":isDistance?"ex: 18.5":"ex: 30"} style={{marginBottom:isDistance||isSteps?10:6}}/>
-                  {!isDistance&&!isSteps&&<div style={{display:"flex",gap:6,marginBottom:10}}>{[{id:"low",label:"🟢 Faible"},{id:"med",label:"🟡 Modérée"},{id:"high",label:"🔴 Haute"}].map(item=><button key={item.id} onClick={()=>setCardioIntensite(item.id)} style={{flex:1,padding:"8px 4px",borderRadius:8,border:`1px solid ${cardioIntensite===item.id?"#FF6B35":"#1E1E2E"}`,cursor:"pointer",background:cardioIntensite===item.id?"#FF6B3522":"#111118",color:cardioIntensite===item.id?"#FF6B35":"#555",fontWeight:cardioIntensite===item.id?700:400,fontSize:12}}>{item.label}</button>)}</div>}
-                  {cardioVal&&kcalEstimee>0&&<div style={{textAlign:"center",marginBottom:10,fontSize:28,fontWeight:900,color:"#FF6B35"}}>~{kcalEstimee} kcal</div>}
+                  <Label>Déficit 14 derniers jours</Label>
+                  <div style={{background:"#0D0D14",borderRadius:10,padding:12,marginBottom:12}}><BarChart data={deficitChartData}/></div>
+                  <div style={{background:"#0D0D14",borderRadius:10,padding:"10px 14px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{fontSize:12,color:"#555"}}>Cumul semaine</div>
+                      <div style={{fontSize:18,fontWeight:900,color:cumulDeficitSemaine>0?"#44CC44":cumulDeficitSemaine<-500?"#FF4444":"#FFB300"}}>{Math.round(cumulDeficitSemaine)>0?"+":""}{Math.round(cumulDeficitSemaine)} kcal</div>
+                    </div>
+                    <div style={{fontSize:11,color:"#444",marginTop:4}}>Perte théorique : ~{Math.abs(Math.round(cumulDeficitSemaine/7700*100)/100)} kg/sem</div>
+                  </div>
                 </>
               )}
-              <Btn onClick={logCardio} color="#FF6B35">🔥 Logger le cardio</Btn>
-              {todayCardio.length>0&&<div style={{marginTop:12}}>{todayCardio.map((s,i)=><div key={i} style={{background:"#0D0D14",border:"1px solid #1E1E2E",borderRadius:10,padding:"10px 14px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontWeight:700,fontSize:13}}>{CARDIO_TYPES.find(c=>c.id===s.type)?.emoji} {s.nom}</div><div style={{fontSize:11,color:"#555"}}>{s.val} {s.unit} • {s.heure}</div></div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{fontSize:16,fontWeight:900,color:"#FF6B35"}}>+{s.kcal}</div><button onClick={()=>setCardioLog({...cardioLog,[selectedCardioDate]:todayCardio.filter((_,j)=>j!==i)})} style={{background:"#2A0A0A",border:"1px solid #FF444433",borderRadius:8,color:"#FF4444",padding:"5px 8px",cursor:"pointer",fontSize:12}}>🗑️</button></div></div>)}</div>}
             </Card>
-          </>
-        )}
 
-        {/* POIDS */}
-        {activeTab==="poids"&&(
-          <>
-            <Card style={{textAlign:"center"}}>
-              <Label>Poids aujourd'hui</Label>
-              {poidsAujourdhui?(<><div style={{fontSize:52,fontWeight:900,color:"#4ECDC4",letterSpacing:-2}}>{poidsAujourdhui} <span style={{fontSize:18,color:"#555",fontWeight:400}}>kg</span></div>{poidsTendance!==null&&<div style={{fontSize:13,fontWeight:700,color:poidsTendance<=0?"#44CC44":"#FF4444",marginTop:4}}>{poidsTendance>0?"▲":"▼"} {Math.abs(poidsTendance)} kg vs hier {poidsTendance<=0?"📉":"📈"}</div>}</>):<div style={{color:"#333",fontSize:14,padding:"10px 0"}}>Pas encore pesé aujourd'hui</div>}
-            </Card>
-            <Label>Poids du matin (à jeun)</Label>
-            <div style={{display:"flex",gap:8,marginBottom:12}}><NumInput value={inputPoids} onChange={setInputPoids} placeholder="ex: 79.4" style={{flex:1}}/><span style={{display:"flex",alignItems:"center",color:"#555"}}>kg</span></div>
-            <Btn onClick={logPoids} color="#4ECDC4" textColor="#000">⚖️ Enregistrer</Btn>
-            <div style={{background:"#0D0D14",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#444",marginTop:8,marginBottom:14}}>💡 Chaque matin après les toilettes.</div>
-            {weightChartData.length>=2&&(
-              <Card>
-                <Label>Courbe de poids</Label>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                  <div><div style={{fontSize:10,color:"#555"}}>Début</div><div style={{fontWeight:800,color:"#888"}}>{weightChartData[0]?.val} kg</div></div>
-                  {(()=>{const d=+(weightChartData[weightChartData.length-1]?.val-weightChartData[0]?.val).toFixed(1);return<div style={{textAlign:"center"}}><div style={{fontSize:10,color:"#555"}}>Évolution</div><div style={{fontWeight:800,color:d<=0?"#44CC44":"#FF4444"}}>{d>0?"+":""}{d} kg</div></div>;})()}
-                  <div style={{textAlign:"right"}}><div style={{fontSize:10,color:"#555"}}>Maintenant</div><div style={{fontWeight:800,color:"#4ECDC4"}}>{weightChartData[weightChartData.length-1]?.val} kg</div></div>
-                </div>
-                <LineChart data={weightChartData} color="#4ECDC4" unit=" kg"/>
-              </Card>
-            )}
-            {poidsEntries.length>0&&<div style={{marginTop:4}}><Label>Historique</Label>{poidsEntries.slice(0,14).map(([date,p],i)=>{const prev=poidsEntries[i+1]?.[1];const diff=prev?+(p-prev).toFixed(1):null;return<div key={date} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:i===0?"#111120":"#0D0D14",borderRadius:10,marginBottom:5,border:i===0?"1px solid #4ECDC433":"1px solid #1A1A2A"}}><div style={{fontSize:13,color:i===0?"#F0F0F0":"#666"}}>{fmtShort(date)}{i===0&&<span style={{marginLeft:8,fontSize:10,color:"#4ECDC4",fontWeight:700}}>AUJOURD'HUI</span>}</div><div style={{display:"flex",alignItems:"center",gap:10}}>{diff!==null&&<span style={{fontSize:12,color:diff<=0?"#44CC44":"#FF4444",fontWeight:700}}>{diff>0?"+":""}{diff} kg</span>}<span style={{fontWeight:800,fontSize:16,color:i===0?"#4ECDC4":"#888"}}>{p} kg</span></div></div>;})}  </div>}
-          </>
-        )}
-
-        {/* STATS */}
-        {activeTab==="stats"&&(
-          <>
-            <ExoSelector filterCat={statsFilter} setFilterCat={setStatsFilter} selectedExo={statsExo} setSelectedExo={setStatsExo}/>
-            <div style={{display:"flex",gap:6,marginBottom:14}}>
-              {[{id:"1rm",label:"🏆 1RM"},{id:"charge",label:"🏋️ Charge"},{id:"reps",label:"🔁 Reps"}].map(m=>(
-                <button key={m.id} onClick={()=>setStatsMode(m.id)} style={{flex:1,padding:"10px 6px",borderRadius:12,border:`1px solid ${statsMode===m.id?"#FF6B35":"#1E1E2E"}`,cursor:"pointer",background:statsMode===m.id?"#FF6B3522":"#111118",color:statsMode===m.id?"#FF6B35":"#555",fontWeight:statsMode===m.id?800:400,fontSize:13}}>{m.label}</button>
-              ))}
-            </div>
             <Card>
-              <Label>{statsMode==="1rm"?"Évolution 1RM":statsMode==="charge"?"Charge max/séance":"Reps moyennes/séance"} — {EXERCISES.find(e=>e.id===statsExo)?.name}</Label>
-              {statsMode==="1rm"&&(rm1ChartData.length>=2?<LineChart data={rm1ChartData} color={catColor[statsFilter]} unit=" kg"/>:<div style={{color:"#333",textAlign:"center",padding:16,fontSize:12}}>Log des séances pour voir la progression</div>)}
-              {statsMode==="charge"&&(chargeChartData.length>=2?<LineChart data={chargeChartData} color={catColor[statsFilter]} unit=" kg"/>:<div style={{color:"#333",textAlign:"center",padding:16,fontSize:12}}>Pas encore de données</div>)}
-              {statsMode==="reps"&&(repsChartData.length>=2?<><LineChart data={repsChartData} color="#AA88FF" unit=" reps"/><div style={{background:"#0D0D14",borderRadius:8,padding:"10px 12px",marginTop:10,fontSize:11,color:"#555"}}>💡 Reps en hausse → augmenter la charge (+2.5kg)</div></>:<div style={{color:"#333",textAlign:"center",padding:16,fontSize:12}}>Pas encore de données</div>)}
-            </Card>
-            <Card>
-              <Label>1RM actuels — {statsFilter}</Label>
-              {EXERCISES.filter(e=>e.category===statsFilter).map(e=>(
-                <div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #1A1A2A"}}>
-                  <div style={{fontSize:13,color:"#888"}}>{e.emoji} {e.name}</div>
-                  <div style={{fontWeight:800,color:catColor[e.category]}}>{maxes[e.id]||e.default1RM} kg</div>
+              <Label>Cardio du jour</Label>
+              <div style={{background:"#0D0D14",border:"1px solid #1E1E2E",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <button onClick={()=>{const d=keyToDate(selectedCardioDate);d.setDate(d.getDate()-1);setSelectedCardioDate(dateToKey(d));}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:"#888",padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:18}}>←</button>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontWeight:800,fontSize:14,color:selectedCardioDate===todayKey()?"#FF6B35":"#F0F0F0"}}>{selectedCardioDate===todayKey()?"📅 Aujourd'hui":fmtShort(selectedCardioDate)}</div>
                 </div>
-              ))}
-            </Card>
-          </>
-        )}
-
-        {/* CHARGES */}
-        {activeTab==="calc"&&(
-          <>
-            <ExoSelector filterCat={filterCat} setFilterCat={setFilterCat} selectedExo={selectedExo} setSelectedExo={setSelectedExo}/>
-            <Card style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div>
-                <Label>1RM — {exo?.name}</Label>
-                {editingMax?(
-                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                    <input type="text" inputMode="decimal" value={tempMax} onChange={e=>setTempMax(e.target.value)} style={{background:"#1A1A2A",border:"1px solid #FF6B35",borderRadius:8,color:"#fff",padding:"6px 10px",fontSize:20,fontWeight:700,width:90,outline:"none"}} autoFocus/>
-                    <span style={{color:"#888"}}>kg</span>
-                    <button onClick={()=>{const v=parseFloat(tempMax);if(!isNaN(v)&&v>0){setMaxes(p=>({...p,[selectedExo]:v}));setEditingMax(false);notify(`1RM : ${v} kg`);}}} style={{background:"#FF6B35",border:"none",borderRadius:8,color:"#000",padding:"6px 12px",fontWeight:800,cursor:"pointer"}}>OK</button>
-                    <button onClick={()=>setEditingMax(false)} style={{background:"#222",border:"none",borderRadius:8,color:"#888",padding:"6px 10px",cursor:"pointer"}}>✕</button>
-                  </div>
-                ):(
-                  <div style={{fontSize:34,fontWeight:900,color:catColor[exo?.category],letterSpacing:-1}}>{current1RM} <span style={{fontSize:14,color:"#555",fontWeight:400}}>kg</span></div>
-                )}
+                <button onClick={()=>{const d=keyToDate(selectedCardioDate);d.setDate(d.getDate()+1);const nk=dateToKey(d);if(nk<=todayKey())setSelectedCardioDate(nk);}} disabled={selectedCardioDate===todayKey()} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:selectedCardioDate===todayKey()?"#333":"#888",padding:"8px 14px",cursor:selectedCardioDate===todayKey()?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
               </div>
-              {!editingMax&&<button onClick={()=>{setEditingMax(true);setTempMax(current1RM);}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:10,color:"#888",padding:"10px 12px",cursor:"pointer",fontSize:13}}>✏️</button>}
-            </Card>
-            {ZONES.map(z=>(
-              <div key={z.pct} style={{background:"#111118",borderLeft:`4px solid ${z.color}`,border:"1px solid #1E1E2E",borderRadius:12,padding:"12px 16px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div><div style={{fontWeight:700,fontSize:14,color:z.color}}>{z.label}</div><div style={{fontSize:11,color:"#555"}}>{z.pct}% • {z.reps}</div></div>
-                <div style={{textAlign:"right"}}><div style={{fontSize:24,fontWeight:900}}>{round(current1RM*z.pct/100)}</div><div style={{fontSize:11,color:"#555"}}>kg</div></div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {/* COACH */}
-        {activeTab==="coach"&&(
-          <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 280px)"}}>
-            <div style={{background:"linear-gradient(135deg,#1a0a2a,#0a0a1a)",border:"1px solid #6644AA33",borderRadius:12,padding:"12px 16px",marginBottom:12}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#AA88FF"}}>🤖 Coach IA</div>
-              <div style={{fontSize:11,color:"#555",marginTop:2}}>Profil: {poids}kg • Cible: {cibleKcal} kcal • DC: {maxes.dc||95}kg</div>
-            </div>
-            <div style={{flex:1,overflowY:"auto",marginBottom:12}}>
-              {coachHistory.length===0&&<div style={{padding:"10px 0"}}>{["Comment progresser au DC ?","Mon déficit est bon cette semaine ?","J'ai mal dormi, je m'entraîne quand même ?"].map((q,i)=><button key={i} onClick={()=>setCoachInput(q)} style={{display:"block",width:"100%",background:"#111118",border:"1px solid #1E1E2E",borderRadius:10,color:"#666",padding:"10px 14px",cursor:"pointer",marginBottom:8,fontSize:12,textAlign:"left"}}>"{q}"</button>)}</div>}
-              {coachHistory.map((msg,i)=><div key={i} style={{marginBottom:12,display:"flex",justifyContent:msg.role==="user"?"flex-end":"flex-start"}}><div style={{maxWidth:"85%",background:msg.role==="user"?"#FF6B35":"#111118",border:msg.role==="user"?"none":"1px solid #1E1E2E",borderRadius:msg.role==="user"?"14px 14px 4px 14px":"14px 14px 14px 4px",padding:"10px 14px",fontSize:13,color:msg.role==="user"?"#000":"#E0E0E0",lineHeight:1.5}}>{msg.content}</div></div>)}
-              {coachLoading&&<div style={{display:"flex",justifyContent:"flex-start",marginBottom:12}}><div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:"14px 14px 14px 4px",padding:"12px 16px",fontSize:13,color:"#555"}}>● ● ●</div></div>}
-              <div ref={coachEndRef}/>
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              <input type="text" value={coachInput} onChange={e=>setCoachInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&askCoach()} placeholder="Pose ta question..." style={{flex:1,background:"#111118",border:"1px solid #2A2A3A",borderRadius:12,color:"#fff",padding:"12px 16px",fontSize:14,outline:"none"}}/>
-              <button onClick={askCoach} disabled={coachLoading||!coachInput.trim()} style={{background:coachLoading||!coachInput.trim()?"#1A1A2A":"#AA88FF",border:"none",borderRadius:12,color:coachLoading||!coachInput.trim()?"#444":"#000",padding:"12px 18px",fontWeight:800,fontSize:16,cursor:coachLoading||!coachInput.trim()?"not-allowed":"pointer"}}>→</button>
-            </div>
-          </div>
-        )}
-
-      </div>
-      <style>{`* { box-sizing: border-box; } input, textarea { -webkit-appearance: none; }`}</style>
-    </div>
-  );
-}
