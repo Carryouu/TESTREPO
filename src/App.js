@@ -15,12 +15,6 @@ const saveUserData = async (username, userData) => {
   await supabase.from("ppl_data").upsert({ username, data: userData, updated_at: new Date().toISOString() });
 };
 
-function useDebounce(value, delay) {
-  const [dv, setDv] = useState(value);
-  useEffect(() => { const h = setTimeout(() => setDv(value), delay); return () => clearTimeout(h); }, [value, delay]);
-  return dv;
-}
-
 const EXERCISES = [
   { id:"crunch_cable", name:"Crunch Câble", emoji:"🔗", default1RM:30, category:"Core" },
   { id:"crunch_dec", name:"Crunch Décliné", emoji:"📐", default1RM:0, category:"Core" },
@@ -338,39 +332,23 @@ function Tracker({ user, onLogout }) {
     init();
   }, [user]);
 
-  // 🛡️ LE BOUCLIER : On mémorise les données pour que le chronomètre ne les perturbe plus
+  // 🛡️ LE BOUCLIER : On emballe tout dans un seul objet mémorisé pour éviter les bugs avec le chrono
   const userData = useMemo(() => {
     return { maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees };
   }, [maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees]);
 
-  // LA FONCTION DE SAUVEGARDE FORCÉE 
-  const forceSaveCloud = async () => {
-    setIsSaving(true);
-    try {
-      const { error } = await supabase.from("ppl_data").upsert({ 
-        username: user, 
-        data: userData, 
-        updated_at: new Date().toISOString() 
-      });
-      
-      if (error) {
-        alert("❌ ERREUR SUPABASE : " + error.message);
-      } else {
-        notify("✅ Calories gravées dans le Cloud !");
-      }
-    } catch(e) {
-      alert("❌ ERREUR CODE : " + e.message);
-    }
-    setIsSaving(false);
-  };
-
-  const debouncedData = useDebounce(userData, 2000);
-
+  // 🚀 LA SAUVEGARDE INTELLIGENTE : Elle attend que les données soient chargées et elle ignore le chrono
   useEffect(() => {
     if (!isLoaded) return;
-    setIsSaving(true);
-    saveUserData(user, debouncedData).finally(() => setIsSaving(false));
-  }, [debouncedData, isLoaded, user]);
+    
+    // Déclenche une sauvegarde 2 secondes après que tu aies fini de taper
+    const timeoutId = setTimeout(() => {
+      setIsSaving(true);
+      saveUserData(user, userData).finally(() => setIsSaving(false));
+    }, 2000);
+
+    return () => clearTimeout(timeoutId); // Si tu retapes avant 2s, ça annule l'ancienne sauvegarde
+  }, [userData, isLoaded, user]);
 
   const [activeTab, setActiveTab] = useState("programme");
   const [selectedExo, setSelectedExo] = useState("dc");
@@ -908,7 +886,13 @@ function Tracker({ user, onLogout }) {
                   style={{flex:1, border:"1px solid #FF6B3555"}}
                 />
                 <button 
-                  onClick={forceSaveCloud} 
+                  onClick={async () => {
+                    setIsSaving(true);
+                    // On envoie le sac à dos blindé directement
+                    await saveUserData(user, userData);
+                    setIsSaving(false);
+                    notify("✅ Calories gravées dans le Cloud !");
+                  }} 
                   style={{background:"#FF6B35", border:"none", borderRadius:10, color:"#000", fontWeight:900, padding:"0 16px", cursor:"pointer", fontSize:14}}
                 >
                   OK 💾
