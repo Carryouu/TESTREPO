@@ -881,10 +881,25 @@ function Tracker({ user, onLogout }) {
             </div>
 
             <Card>
-              <Label>Calories mangées ce jour</Label>
+              <Label>Calories mangées le {fmtShort(selectedNutriDate)}</Label>
               <div style={{display:"flex",gap:8,marginBottom:12}}>
-                <NumInput value={calMangees[selectedNutriDate]||""} onChange={v=>setCalMangees(prev=>({...prev,[selectedNutriDate]:v}))} placeholder={`Cible du jour : ${nutriCibleKcal} kcal`} style={{flex:1, border:"1px solid #FF6B3555"}}/>
-                <span style={{display:"flex",alignItems:"center",color:"#555"}}>kcal</span>
+                <NumInput 
+                  value={calMangees[selectedNutriDate]||""} 
+                  onChange={v=>setCalMangees(prev=>({...prev,[selectedNutriDate]:v}))} 
+                  placeholder={`Cible du jour : ${nutriCibleKcal} kcal`} 
+                  style={{flex:1, border:"1px solid #FF6B3555"}}
+                />
+                <button 
+                  onClick={async () => {
+                    setIsSaving(true);
+                    await saveUserData(user, { maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees });
+                    setIsSaving(false);
+                    notify("✅ Calories sauvegardées !");
+                  }} 
+                  style={{background:"#FF6B35", border:"none", borderRadius:10, color:"#000", fontWeight:900, padding:"0 16px", cursor:"pointer", fontSize:14}}
+                >
+                  OK 💾
+                </button>
               </div>
               
               <div style={{background:"#0D0D14", border:"1px solid #1E1E2E", borderRadius:12, padding:14, marginBottom:12}}>
