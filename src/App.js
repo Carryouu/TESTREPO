@@ -912,3 +912,164 @@ function Tracker({ user, onLogout }) {
                 </div>
                 <button onClick={()=>{const d=keyToDate(selectedCardioDate);d.setDate(d.getDate()+1);const nk=dateToKey(d);if(nk<=todayKey())setSelectedCardioDate(nk);}} disabled={selectedCardioDate===todayKey()} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:8,color:selectedCardioDate===todayKey()?"#333":"#888",padding:"8px 14px",cursor:selectedCardioDate===todayKey()?"not-allowed":"pointer",fontWeight:700,fontSize:18}}>→</button>
               </div>
+                       {totalKcalCardio>0 && <div style={{background:"linear-gradient(135deg,#1A0A00,#2A1000)",border:"1px solid #FF6B3533",borderRadius:10,padding:"12px 14px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:22,fontWeight:900,color:"#FF6B35"}}>+{totalKcalCardio} kcal</div><div style={{fontSize:11,color:"#555"}}>→ Cible ajustée</div></div><div style={{fontSize:32}}>🔥</div></div>}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
+                {CARDIO_TYPES.map(c=><button key={c.id} onClick={()=>setCardioType(c.id)} style={{padding:10,borderRadius:12,cursor:"pointer",background:cardioType===c.id?"#FF6B3522":"#0D0D14",border:`1px solid ${cardioType===c.id?"#FF6B35":"#1E1E2E"}`,color:cardioType===c.id?"#FF6B35":"#555",fontWeight:cardioType===c.id?800:400,fontSize:12,textAlign:"left"}}><span style={{fontSize:16}}>{c.emoji}</span> {c.name}</button>)}
+              </div>
+              {isIncline ? (
+                <>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+                    <div><Label>Vitesse km/h</Label><NumInput value={tapisVitesse} onChange={setTapisVitesse} placeholder="4"/></div>
+                    <div><Label>Pente %</Label><NumInput value={tapisPente} onChange={setTapisPente} placeholder="15"/></div>
+                    <div><Label>Durée min</Label><NumInput value={tapisDuree} onChange={setTapisDuree} placeholder="20"/></div>
+                  </div>
+                  {calcTapisKcal()>0 && <div style={{textAlign:"center",marginBottom:10,fontSize:28,fontWeight:900,color:"#FF6B35"}}>~{calcTapisKcal()} kcal</div>}
+                </>
+              ) : (
+                <>
+                  <NumInput value={cardioVal} onChange={setCardioVal} placeholder={isSteps?"ex: 8000":isDistance?"ex: 18.5":"ex: 30"} style={{marginBottom:isDistance||isSteps?10:6}}/>
+                  {!isDistance && !isSteps && <div style={{display:"flex",gap:6,marginBottom:10}}>{[{id:"low",label:"🟢 Faible"},{id:"med",label:"🟡 Modérée"},{id:"high",label:"🔴 Haute"}].map(item=><button key={item.id} onClick={()=>setCardioIntensite(item.id)} style={{flex:1,padding:"8px 4px",borderRadius:8,border:`1px solid ${cardioIntensite===item.id?"#FF6B35":"#1E1E2E"}`,cursor:"pointer",background:cardioIntensite===item.id?"#FF6B3522":"#111118",color:cardioIntensite===item.id?"#FF6B35":"#555",fontWeight:cardioIntensite===item.id?700:400,fontSize:12}}>{item.label}</button>)}</div>}
+                  {cardioVal && kcalEstimee>0 && <div style={{textAlign:"center",marginBottom:10,fontSize:28,fontWeight:900,color:"#FF6B35"}}>~{kcalEstimee} kcal</div>}
+                </>
+              )}
+              <Btn onClick={logCardio} color="#FF6B35">🔥 Logger le cardio</Btn>
+              {todayCardio.length>0 && <div style={{marginTop:12}}>{todayCardio.map((s,i)=><div key={i} style={{background:"#0D0D14",border:"1px solid #1E1E2E",borderRadius:10,padding:"10px 14px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontWeight:700,fontSize:13}}>{CARDIO_TYPES.find(c=>c.id===s.type)?.emoji} {s.nom}</div><div style={{fontSize:11,color:"#555"}}>{s.val} {s.unit} • {s.heure}</div></div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{fontSize:16,fontWeight:900,color:"#FF6B35"}}>+{s.kcal}</div><button onClick={()=>setCardioLog({...cardioLog,[selectedCardioDate]:todayCardio.filter((_,j)=>j!==i)})} style={{background:"#2A0A0A",border:"1px solid #FF444433",borderRadius:8,color:"#FF4444",padding:"5px 8px",cursor:"pointer",fontSize:12}}>🗑️</button></div></div>)}</div>}
+            </Card>
+          </>
+        )}
+
+        {/* POIDS */}
+        {activeTab==="poids" && (
+          <>
+            <Card style={{textAlign:"center"}}>
+              <Label>Poids aujourd'hui</Label>
+              {poidsAujourdhui ? (
+                <>
+                  <div style={{fontSize:52,fontWeight:900,color:"#4ECDC4",letterSpacing:-2}}>{poidsAujourdhui} <span style={{fontSize:18,color:"#555",fontWeight:400}}>kg</span></div>
+                  {poidsTendance!==null && <div style={{fontSize:13,fontWeight:700,color:poidsTendance<=0?"#44CC44":"#FF4444",marginTop:4}}>{poidsTendance>0?"▲":"▼"} {Math.abs(poidsTendance)} kg vs hier {poidsTendance<=0?"📉":"📈"}</div>}
+                  <button onClick={()=>deletePoids(todayKey())} style={{marginTop:10,background:"#2A0A0A",border:"1px solid #FF444433",borderRadius:8,color:"#FF4444",padding:"6px 14px",cursor:"pointer",fontSize:12}}>🗑️ Supprimer</button>
+                </>
+              ) : <div style={{color:"#333",fontSize:14,padding:"10px 0"}}>Pas encore pesé aujourd'hui</div>}
+            </Card>
+            <Label>Poids du matin (à jeun)</Label>
+            <div style={{display:"flex",gap:8,marginBottom:4}}>
+              <NumInput value={inputPoids} onChange={setInputPoids} placeholder="ex: 79.4" style={{flex:1}}/>
+              <span style={{display:"flex",alignItems:"center",color:"#555"}}>kg</span>
+            </div>
+            <div style={{fontSize:11,color:"#444",marginBottom:10}}>💡 Virgule ou point acceptés (ex: 79,4 ou 79.4)</div>
+            <Btn onClick={logPoids} color="#4ECDC4" textColor="#000">⚖️ Enregistrer</Btn>
+            <div style={{background:"#0D0D14",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#444",marginTop:8,marginBottom:14}}>💡 Chaque matin après les toilettes.</div>
+            {weightChartData.length>=2 && (
+              <Card>
+                <Label>Courbe de poids</Label>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                  <div><div style={{fontSize:10,color:"#555"}}>Début</div><div style={{fontWeight:800,color:"#888"}}>{weightChartData[0]?.val} kg</div></div>
+                  {(()=>{const d=+(weightChartData[weightChartData.length-1]?.val-weightChartData[0]?.val).toFixed(1);return<div style={{textAlign:"center"}}><div style={{fontSize:10,color:"#555"}}>Évolution</div><div style={{fontWeight:800,color:d<=0?"#44CC44":"#FF4444"}}>{d>0?"+":""}{d} kg</div></div>;})()}
+                  <div style={{textAlign:"right"}}><div style={{fontSize:10,color:"#555"}}>Maintenant</div><div style={{fontWeight:800,color:"#4ECDC4"}}>{weightChartData[weightChartData.length-1]?.val} kg</div></div>
+                </div>
+                <LineChart data={weightChartData} color="#4ECDC4" unit=" kg"/>
+              </Card>
+            )}
+            {poidsEntries.length>0 && (
+              <div style={{marginTop:4}}>
+                <Label>Historique</Label>
+                {poidsEntries.slice(0,14).map(([date,p],i)=>{
+                  const prev = poidsEntries[i+1]?.[1];
+                  const diff = prev ? +(p-prev).toFixed(1) : null;
+                  return (
+                    <div key={date} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:i===0?"#111120":"#0D0D14",borderRadius:10,marginBottom:5,border:i===0?"1px solid #4ECDC433":"1px solid #1A1A2A"}}>
+                      <div style={{fontSize:13,color:i===0?"#F0F0F0":"#666"}}>{fmtShort(date)}{i===0&&<span style={{marginLeft:8,fontSize:10,color:"#4ECDC4",fontWeight:700}}>AUJOURD'HUI</span>}</div>
+                      <div style={{display:"flex",alignItems:"center",gap:10}}>
+                        {diff!==null && <span style={{fontSize:12,color:diff<=0?"#44CC44":"#FF4444",fontWeight:700}}>{diff>0?"+":""}{diff} kg</span>}
+                        <span style={{fontWeight:800,fontSize:16,color:i===0?"#4ECDC4":"#888"}}>{p} kg</span>
+                        <button onClick={()=>deletePoids(date)} style={{background:"#2A0A0A",border:"1px solid #FF444433",borderRadius:8,color:"#FF4444",padding:"4px 8px",cursor:"pointer",fontSize:11}}>🗑️</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* STATS */}
+        {activeTab==="stats" && (
+          <>
+            <ExoSelector filterCat={statsFilter} setFilterCat={setStatsFilter} selectedExo={statsExo} setSelectedExo={setStatsExo}/>
+            <div style={{display:"flex",gap:6,marginBottom:14}}>
+              {[{id:"1rm",label:"🏆 1RM"},{id:"charge",label:"🏋️ Charge"},{id:"reps",label:"🔁 Reps"}].map(m=>(
+                <button key={m.id} onClick={()=>setStatsMode(m.id)} style={{flex:1,padding:"10px 6px",borderRadius:12,border:`1px solid ${statsMode===m.id?"#FF6B35":"#1E1E2E"}`,cursor:"pointer",background:statsMode===m.id?"#FF6B3522":"#111118",color:statsMode===m.id?"#FF6B35":"#555",fontWeight:statsMode===m.id?800:400,fontSize:13}}>{m.label}</button>
+              ))}
+            </div>
+            <Card>
+              <Label>{statsMode==="1rm"?"Évolution 1RM":statsMode==="charge"?"Charge max/séance":"Reps moyennes/séance"} — {EXERCISES.find(e=>e.id===statsExo)?.name}</Label>
+              {statsMode==="1rm" && (rm1ChartData.length>=2?<LineChart data={rm1ChartData} color={catColor[statsFilter]} unit=" kg"/>:<div style={{color:"#333",textAlign:"center",padding:16,fontSize:12}}>Log des séances pour voir la progression</div>)}
+              {statsMode==="charge" && (chargeChartData.length>=2?<LineChart data={chargeChartData} color={catColor[statsFilter]} unit=" kg"/>:<div style={{color:"#333",textAlign:"center",padding:16,fontSize:12}}>Pas encore de données</div>)}
+              {statsMode==="reps" && (repsChartData.length>=2?<><LineChart data={repsChartData} color="#AA88FF" unit=" reps"/><div style={{background:"#0D0D14",borderRadius:8,padding:"10px 12px",marginTop:10,fontSize:11,color:"#555"}}>💡 Reps en hausse → augmenter la charge (+2.5kg)</div></>:<div style={{color:"#333",textAlign:"center",padding:16,fontSize:12}}>Pas encore de données</div>)}
+            </Card>
+            <Card>
+              <Label>1RM actuels — {statsFilter}</Label>
+              {EXERCISES.filter(e=>e.category===statsFilter).map(e=>(
+                <div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #1A1A2A"}}>
+                  <div style={{fontSize:13,color:"#888"}}>{e.emoji} {e.name}</div>
+                  <div style={{fontWeight:800,color:catColor[e.category]}}>{maxes[e.id]||e.default1RM} kg</div>
+                </div>
+              ))}
+            </Card>
+          </>
+        )}
+
+        {/* CHARGES */}
+        {activeTab==="calc" && (
+          <>
+            <ExoSelector filterCat={filterCat} setFilterCat={setFilterCat} selectedExo={selectedExo} setSelectedExo={setSelectedExo}/>
+            <Card style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div>
+                <Label>1RM — {exo?.name}</Label>
+                {editingMax ? (
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <input type="text" inputMode="decimal" value={tempMax} onChange={e=>setTempMax(e.target.value)} style={{background:"#1A1A2A",border:"1px solid #FF6B35",borderRadius:8,color:"#fff",padding:"6px 10px",fontSize:20,fontWeight:700,width:90,outline:"none"}} autoFocus/>
+                    <span style={{color:"#888"}}>kg</span>
+                    <button onClick={()=>{const v=parseFloat(tempMax);if(!isNaN(v)&&v>0){setMaxes(p=>({...p,[selectedExo]:v}));setEditingMax(false);notify(`1RM : ${v} kg`);}}} style={{background:"#FF6B35",border:"none",borderRadius:8,color:"#000",padding:"6px 12px",fontWeight:800,cursor:"pointer"}}>OK</button>
+                    <button onClick={()=>setEditingMax(false)} style={{background:"#222",border:"none",borderRadius:8,color:"#888",padding:"6px 10px",cursor:"pointer"}}>✕</button>
+                  </div>
+                ) : (
+                  <div style={{fontSize:34,fontWeight:900,color:catColor[exo?.category],letterSpacing:-1}}>{current1RM} <span style={{fontSize:14,color:"#555",fontWeight:400}}>kg</span></div>
+                )}
+              </div>
+              {!editingMax && <button onClick={()=>{setEditingMax(true);setTempMax(current1RM);}} style={{background:"#1A1A2A",border:"1px solid #2A2A3A",borderRadius:10,color:"#888",padding:"10px 12px",cursor:"pointer",fontSize:13}}>✏️</button>}
+            </Card>
+            {ZONES.map(z=>(
+              <div key={z.pct} style={{background:"#111118",borderLeft:`4px solid ${z.color}`,border:"1px solid #1E1E2E",borderRadius:12,padding:"12px 16px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div><div style={{fontWeight:700,fontSize:14,color:z.color}}>{z.label}</div><div style={{fontSize:11,color:"#555"}}>{z.pct}% • {z.reps}</div></div>
+                <div style={{textAlign:"right"}}><div style={{fontSize:24,fontWeight:900}}>{round(current1RM*z.pct/100)}</div><div style={{fontSize:11,color:"#555"}}>kg</div></div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* COACH */}
+        {activeTab==="coach" && (
+          <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 280px)"}}>
+            <div style={{background:"linear-gradient(135deg,#1a0a2a,#0a0a1a)",border:"1px solid #6644AA33",borderRadius:12,padding:"12px 16px",marginBottom:12}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#AA88FF"}}>🤖 Coach IA</div>
+              <div style={{fontSize:11,color:"#555",marginTop:2}}>Profil: {poids}kg • Cible: {cibleKcal} kcal • DC: {maxes.dc||95}kg</div>
+            </div>
+            <div style={{flex:1,overflowY:"auto",marginBottom:12}}>
+              {coachHistory.length===0 && <div style={{padding:"10px 0"}}>{["Comment progresser au DC ?","Mon déficit est bon cette semaine ?","J'ai mal dormi, je m'entraîne quand même ?"].map((q,i)=><button key={i} onClick={()=>setCoachInput(q)} style={{display:"block",width:"100%",background:"#111118",border:"1px solid #1E1E2E",borderRadius:10,color:"#666",padding:"10px 14px",cursor:"pointer",marginBottom:8,fontSize:12,textAlign:"left"}}>"{q}"</button>)}</div>}
+              {coachHistory.map((msg,i)=><div key={i} style={{marginBottom:12,display:"flex",justifyContent:msg.role==="user"?"flex-end":"flex-start"}}><div style={{maxWidth:"85%",background:msg.role==="user"?"#FF6B35":"#111118",border:msg.role==="user"?"none":"1px solid #1E1E2E",borderRadius:msg.role==="user"?"14px 14px 4px 14px":"14px 14px 14px 4px",padding:"10px 14px",fontSize:13,color:msg.role==="user"?"#000":"#E0E0E0",lineHeight:1.5}}>{msg.content}</div></div>)}
+              {coachLoading && <div style={{display:"flex",justifyContent:"flex-start",marginBottom:12}}><div style={{background:"#111118",border:"1px solid #1E1E2E",borderRadius:"14px 14px 14px 4px",padding:"12px 16px",fontSize:13,color:"#555"}}>● ● ●</div></div>}
+              <div ref={coachEndRef}/>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <input type="text" value={coachInput} onChange={e=>setCoachInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&askCoach()} placeholder="Pose ta question..." style={{flex:1,background:"#111118",border:"1px solid #2A2A3A",borderRadius:12,color:"#fff",padding:"12px 16px",fontSize:14,outline:"none"}}/>
+              <button onClick={askCoach} disabled={coachLoading||!coachInput.trim()} style={{background:coachLoading||!coachInput.trim()?"#1A1A2A":"#AA88FF",border:"none",borderRadius:12,color:coachLoading||!coachInput.trim()?"#444":"#000",padding:"12px 18px",fontWeight:800,fontSize:16,cursor:coachLoading||!coachInput.trim()?"not-allowed":"pointer"}}>→</button>
+            </div>
+          </div>
+        )}
+
+      </div>
+      <style>{`* { box-sizing: border-box; } input, textarea { -webkit-appearance: none; }`}</style>
+    </div>
+  );
+}
