@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
@@ -14,28 +14,7 @@ const loadUserData = async (username) => {
 const saveUserData = async (username, userData) => {
   await supabase.from("ppl_data").upsert({ username, data: userData, updated_at: new Date().toISOString() });
 };
-const forceSaveCloud = async () => {
-    setIsSaving(true);
-    try {
-      // On emballe exactement tout ton profil à la seconde T
-      const payload = { maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees };
-      
-      const { error } = await supabase.from("ppl_data").upsert({ 
-        username: user, 
-        data: payload, 
-        updated_at: new Date().toISOString() 
-      });
-      
-      if (error) {
-        alert("❌ ERREUR SUPABASE : " + error.message);
-      } else {
-        notify("✅ Calories gravées dans le Cloud !");
-      }
-    } catch(e) {
-      alert("❌ ERREUR CODE : " + e.message);
-    }
-    setIsSaving(false);
-  };
+
 function useDebounce(value, delay) {
   const [dv, setDv] = useState(value);
   useEffect(() => { const h = setTimeout(() => setDv(value), delay); return () => clearTimeout(h); }, [value, delay]);
@@ -337,6 +316,9 @@ function Tracker({ user, onLogout }) {
   const [poidsLog, setPoidsLog] = useState({});
   const [cardioLog, setCardioLog] = useState({});
   const [calMangees, setCalMangees] = useState({});
+  const [notification, setNotification] = useState(null);
+
+  const notify = (msg, type="success") => { setNotification({msg,type}); setTimeout(() => setNotification(null), 3000); };
 
   useEffect(() => {
     const init = async () => {
@@ -356,24 +338,47 @@ function Tracker({ user, onLogout }) {
     init();
   }, [user]);
 
-  const userData = { maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees };
+  // 🛡️ LE BOUCLIER : On mémorise les données pour que le chronomètre ne les perturbe plus
+  const userData = useMemo(() => {
+    return { maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees };
+  }, [maxes, history, sessions, profile, objectif, poidsLog, cardioLog, calMangees]);
+
+  // LA FONCTION DE SAUVEGARDE FORCÉE 
+  const forceSaveCloud = async () => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.from("ppl_data").upsert({ 
+        username: user, 
+        data: userData, 
+        updated_at: new Date().toISOString() 
+      });
+      
+      if (error) {
+        alert("❌ ERREUR SUPABASE : " + error.message);
+      } else {
+        notify("✅ Calories gravées dans le Cloud !");
+      }
+    } catch(e) {
+      alert("❌ ERREUR CODE : " + e.message);
+    }
+    setIsSaving(false);
+  };
+
   const debouncedData = useDebounce(userData, 2000);
 
   useEffect(() => {
     if (!isLoaded) return;
     setIsSaving(true);
     saveUserData(user, debouncedData).finally(() => setIsSaving(false));
-  }, [debouncedData]);
+  }, [debouncedData, isLoaded, user]);
 
   const [activeTab, setActiveTab] = useState("programme");
   const [selectedExo, setSelectedExo] = useState("dc");
   const [filterCat, setFilterCat] = useState("Push");
   const [selectedSessionDate, setSelectedSessionDate] = useState(todayKey());
   
-  // ⚡ LA NOUVELLE MASTER DATE UNIQUE POUR LA NUTRITION ET LE CARDIO
   const [selectedNutriDate, setSelectedNutriDate] = useState(todayKey());
   
-  // 📅 State pour le nouveau module "Recap depuis une date"
   const [customRecapDate, setCustomRecapDate] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 7); return dateToKey(d);
   });
@@ -386,7 +391,7 @@ function Tracker({ user, onLogout }) {
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
   const [timerEndTime, setTimerEndTime] = useState(null);
-  const [notification, setNotification] = useState(null);
+  
   const [cardioType, setCardioType] = useState("pas");
   const [cardioVal, setCardioVal] = useState("");
   const [cardioIntensite, setCardioIntensite] = useState("med");
@@ -418,9 +423,7 @@ function Tracker({ user, onLogout }) {
 
   const startTimer = dur => setTimerEndTime(Date.now() + dur * 1000);
   const stopTimer = () => { setTimerEndTime(null); setTimerActive(false); setTimerSeconds(0); };
-  const notify = (msg, type="success") => { setNotification({msg,type}); setTimeout(() => setNotification(null), 3000); };
-
-  // CALULS DE BASE (TDEE, Objectifs)
+  
   const poids = parseFloat(profile.poids) || 80;
   const mbr = profile.sexe === "homme"
     ? Math.round(10*poids + 6.25*(parseFloat(profile.taille)||186) - 5*(parseFloat(profile.age)||22) + 5)
@@ -429,14 +432,12 @@ function Tracker({ user, onLogout }) {
   const tdee = Math.round(mbr * actFactor);
   const objData = OBJECTIFS.find(o=>o.id===objectif) || OBJECTIFS[4];
   
-  // DONNÉES DU JOUR SELECTIONNÉ (NUTRITION)
   const nutriCardioData = cardioLog[selectedNutriDate] || [];
   const nutriCardioTotal = nutriCardioData.reduce((s,e)=>s+e.kcal, 0);
   const nutriMangeTotal = parseInt(calMangees[selectedNutriDate]) || 0;
-  const nutriCibleKcal = tdee + objData.deficit + nutriCardioTotal; // Ce qu'il DOIT manger
+  const nutriCibleKcal = tdee + objData.deficit + nutriCardioTotal; 
   const nutriDeficitGenere = (nutriMangeTotal > 0) ? (tdee + nutriCardioTotal) - nutriMangeTotal : null;
 
-  // DONNÉES HEADER (Aujourd'hui)
   const headerCardioTotal = (cardioLog[todayKey()] || []).reduce((s,e)=>s+e.kcal, 0);
   const headerCibleKcal = tdee + objData.deficit + headerCardioTotal;
   const headerMangeTotal = parseInt(calMangees[todayKey()]) || 0;
@@ -446,13 +447,11 @@ function Tracker({ user, onLogout }) {
   const cibleLip = Math.round(poids * objData.fatPerKg);
   const cibleGluc = Math.max(0, Math.round((headerCibleKcal - cibleProt*4 - cibleLip*9) / 4));
 
-  // FONCTION UNIVERSELLE DE RECAP
   const getRecapInfos = (startKey, endKey) => {
     let depenseTotal = 0;
     let mangeTotal = 0;
     let jours = 0;
     
-    // On ne calcule le déficit QUE pour les jours où tu as rentré tes calories
     Object.keys(calMangees).forEach(date => {
       if (date >= startKey && date <= endKey) {
         const cal = parseInt(calMangees[date]);
@@ -467,14 +466,12 @@ function Tracker({ user, onLogout }) {
     return { jours, depense: depenseTotal, mange: mangeTotal, deficit: depenseTotal - mangeTotal };
   };
 
-  // RECAP DE LA SEMAINE EN COURS (Lundi à Aujourd'hui)
   const recapSemaine = (() => {
     const now = new Date(), dow = now.getDay()===0?7:now.getDay(), lundi = new Date(now);
     lundi.setDate(now.getDate() - dow + 1);
     return getRecapInfos(dateToKey(lundi), todayKey());
   })();
 
-  // RECAP CUSTOM
   const recapCustomStats = getRecapInfos(customRecapDate, todayKey());
 
   const deficitChartData = (() => {
